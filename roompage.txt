@@ -1,0 +1,397 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import io from 'socket.io-client';
+import { UserIcon, ClipboardIcon, ArrowLeftOnRectangleIcon, PlayIcon, CheckCircleIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
+import { toast } from 'react-toastify';
+
+const socket = io('http://localhost:5000');
+
+const GameRoomPage = () => {
+    const [players, setPlayers] = useState([]);
+    const [grid, setGrid] = useState([]);
+    const [nextNumber, setNextNumber] = useState(1);
+    const [message, setMessage] = useState('Đang chờ người chơi...');
+    const [hasJoined, setHasJoined] = useState(false);
+    const [gameStarted, setGameStarted] = useState(false);
+    const [username, setUsername] = useState('');
+    const [roomId, setRoomId] = useState('');
+    const [joinRoomId, setJoinRoomId] = useState('');
+    const [difficulty, setDifficulty] = useState('medium');
+    const [mode, setMode] = useState('shuffle');
+    const [myColor, setMyColor] = useState('#FF5733');
+    const [isDarkTheme, setIsDarkTheme] = useState(false);
+    const [foundNumbers, setFoundNumbers] = useState({});
+    const [positions, setPositions] = useState([]);
+    const gameContainerRef = useRef(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            localStorage.setItem('redirectAfterLogin', location.pathname + location.search);
+            navigate('/');
+            return;
+        }
+
+        let userUsername = '';
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userUsername = payload.user.username;
+            setUsername(userUsername);
+        } catch (error) {
+            console.error("Failed to parse token:", error);
+            navigate('/');
+            return;
+        }
+
+        const queryParams = new URLSearchParams(location.search);
+        const roomFromUrl = queryParams.get('room');
+        if (roomFromUrl) {
+            setJoinRoomId(roomFromUrl);
+        }
+
+        socket.on('room_state', (data) => {
+            setPlayers(data.players);
+            setMessage(data.message);
+            setRoomId(data.roomId);
+            setHasJoined(true);
+            setGameStarted(data.gameStarted);
+            setIsDarkTheme(data.isDarkTheme);
+            if(data.difficulty) setDifficulty(data.difficulty);
+            if(data.mode) setMode(data.mode);
+            const myPlayer = data.players.find(p => p.username === userUsername);
+            if (myPlayer) {
+                setMyColor(myPlayer.color);
+            }
+        });
+
+        socket.on('game_state', (data) => {
+            setPlayers(data.players);
+            setMessage(data.message);
+            setGrid(data.grid);
+            setNextNumber(data.nextNumber);
+            setGameStarted(data.gameStarted);
+            setFoundNumbers(data.foundNumbers);
+        });
+
+        socket.on('number_found', (data) => {
+            setGrid(data.grid);
+            setNextNumber(data.nextNumber);
+            setPlayers(data.players);
+            setFoundNumbers(data.foundNumbers);
+        });
+
+        socket.on('game_over', (data) => {
+            toast.success(data.message);
+            setMessage(data.message);
+            setGameStarted(false);
+            setFoundNumbers({});
+        });
+        
+        socket.on('error', (errorMsg) => {
+            toast.error(errorMsg);
+            setMessage(errorMsg);
+            setHasJoined(false);
+        });
+
+        return () => {
+            socket.off('room_state');
+            socket.off('game_state');
+            socket.off('number_found');
+            socket.off('game_over');
+            socket.off('error');
+        };
+    }, [navigate, location.search, location.pathname]);
+
+    // Tạo vị trí ngẫu nhiên cho các số
+    useEffect(() => {
+        if (gameStarted && grid.length > 0 && gameContainerRef.current) {
+            const containerWidth = gameContainerRef.current.offsetWidth;
+            const containerHeight = gameContainerRef.current.offsetHeight;
+            const itemSize = 48; // Chiều rộng/cao của một số (ví dụ: w-12 h-12 = 48px)
+            const padding = 10;
+            const newPositions = [];
+            const shuffledGrid = [...grid].sort(() => Math.random() - 0.5);
+
+            shuffledGrid.forEach((num, index) => {
+                let newPos = {};
+                let isOverlapping;
+                let attempts = 0;
+                
+                // Vòng lặp để tìm vị trí không chồng lấn
+                do {
+                    isOverlapping = false;
+                    newPos.left = Math.random() * (containerWidth - itemSize - 2 * padding) + padding;
+                    newPos.top = Math.random() * (containerHeight - itemSize - 2 * padding) + padding;
+                    
+                    for (const existingPos of newPositions) {
+                        const distanceX = newPos.left - existingPos.left;
+                        const distanceY = newPos.top - existingPos.top;
+                        const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                        // Khoảng cách tối thiểu giữa các số
+                        const minDistance = itemSize + 10; 
+                        
+                        if (distance < minDistance) {
+                            isOverlapping = true;
+                            break;
+                        }
+                    }
+                    attempts++;
+                    // Giới hạn số lần thử để tránh vòng lặp vô hạn
+                    if (attempts > 500) { 
+                        console.warn("Could not find non-overlapping position. Placing anyway.");
+                        break;
+                    }
+                } while (isOverlapping);
+                
+                newPositions.push({ ...newPos, number: num });
+            });
+
+            setPositions(newPositions);
+        }
+    }, [gameStarted, grid]);
+
+    const handleCreateRoom = () => {
+        socket.emit('create_room', { username, difficulty, mode, color: myColor });
+    };
+
+    const handleJoinRoom = () => {
+        if (joinRoomId.length > 0) {
+            socket.emit('join_room', { roomId: joinRoomId, username, color: myColor });
+        } else {
+            toast.warn("Vui lòng nhập ID phòng!");
+        }
+    };
+
+    const handleStartGame = () => {
+        socket.emit('start_game');
+    };
+    
+    const handleLeaveRoom = () => {
+        socket.disconnect();
+        navigate('/');
+        window.location.reload();
+    };
+
+    const handleNumberClick = (number) => {
+        if (gameStarted) {
+            socket.emit('number_click', { number });
+        } else {
+            toast.warn('Trò chơi chưa bắt đầu!');
+        }
+    };
+    
+    const handleThemeToggle = () => {
+        socket.emit('toggle_theme');
+    };
+
+    const handleColorChange = (newColor) => {
+        setMyColor(newColor);
+        socket.emit('change_color', { color: newColor });
+    };
+
+    const isMySelf = (player) => {
+        return player.username === username;
+    };
+    
+    const isPlayerCreator = players.find(p => isMySelf(p))?.isCreator;
+    const secondPlayerJoined = players.length === 2;
+    
+    const copyRoomIdToClipboard = () => {
+        navigator.clipboard.writeText(roomId).then(() => {
+            toast.success('Đã sao chép ID phòng!');
+        }).catch(err => {
+            console.error('Không thể sao chép: ', err);
+        });
+    };
+
+    const copyInviteLinkToClipboard = () => {
+        const inviteLink = window.location.origin + '/game?room=' + roomId;
+        navigator.clipboard.writeText(inviteLink).then(() => {
+            toast.success('Đã sao chép link mời!');
+        }).catch(err => {
+            console.error('Không thể sao chép: ', err);
+        });
+    };
+
+    const gameRoomClasses = `min-h-screen p-4 transition-colors duration-500 ${isDarkTheme ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-purple-800 to-indigo-900 text-white'}`;
+    const numberItemClasses = (num) => {
+        const foundColor = foundNumbers[num];
+        const baseClass = `flex items-center justify-center font-bold text-xl transition-all duration-300 transform rounded-full w-12 h-12 cursor-pointer absolute`;
+        
+        if (foundColor) {
+            return `${baseClass} border-2 border-[${foundColor}] text-[${foundColor}] bg-transparent`;
+        }
+        return `${baseClass} text-white hover:scale-110 active:scale-95`;
+    };
+    
+    if (!hasJoined) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
+                <div className="text-center p-8 bg-white bg-opacity-10 rounded-2xl shadow-xl border border-opacity-20 border-white max-w-sm w-full space-y-4">
+                    <h2 className="text-3xl font-bold mb-4 text-gradient">Chào mừng, {username}!</h2>
+                    <p className="text-gray-200">Bạn đã sẵn sàng tham gia phòng chơi chưa?</p>
+                    
+                    <div className="space-y-4">
+                        <div className="flex flex-col items-center space-y-2">
+                            <label className="text-gray-200">Chọn màu của bạn:</label>
+                            <input
+                                type="color"
+                                value={myColor}
+                                onChange={(e) => handleColorChange(e.target.value)}
+                                className="h-10 w-10 rounded-full border-2 border-white cursor-pointer"
+                            />
+                        </div>
+                        
+                        <div className="space-y-2 text-left">
+                            <label className="block text-gray-200">Mức độ:</label>
+                            <select
+                                value={difficulty}
+                                onChange={(e) => setDifficulty(e.target.value)}
+                                className="w-full px-4 py-2 bg-white bg-opacity-20 rounded-full text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition duration-300"
+                            >
+                                <option className="text-black" value="easy">Dễ (1-50)</option>
+                                <option className="text-black" value="medium">Trung bình (1-75)</option>
+                                <option className="text-black" value="hard">Khó (1-100)</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2 text-left">
+                            <label className="block text-gray-200">Chế độ chơi:</label>
+                            <select
+                                value={mode}
+                                onChange={(e) => setMode(e.target.value)}
+                                className="w-full px-4 py-2 bg-white bg-opacity-20 rounded-full text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition duration-300"
+                            >
+                                <option className="text-black" value="shuffle">Đảo vị trí</option>
+                                <option className="text-black" value="keep">Giữ nguyên vị trí</option>
+                            </select>
+                        </div>
+                        
+                        <button 
+                            onClick={handleCreateRoom} 
+                            className="btn-create w-full"
+                        >
+                            <PlayIcon className="h-5 w-5 mr-2" /> Tạo phòng mới
+                        </button>
+                        
+                        <p className="text-gray-200">hoặc</p>
+                        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                            <input
+                                type="text"
+                                placeholder="Nhập ID phòng"
+                                value={joinRoomId}
+                                onChange={(e) => setJoinRoomId(e.target.value)}
+                                className="w-full px-4 py-2 bg-white bg-opacity-20 rounded-full text-white placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 transition duration-300"
+                            />
+                            <button 
+                                onClick={handleJoinRoom} 
+                                className="btn-join flex-shrink-0"
+                            >
+                                <UserIcon className="h-5 w-5 mr-2" /> Tham gia
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    return (
+        <div className={gameRoomClasses}>
+            <div className="flex flex-col items-center justify-center p-4">
+                <h1 className="text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
+                <p className="text-xl text-gray-200 mb-4">{message}</p>
+
+                {roomId && (
+                    <div className="mb-4 space-y-2 text-center w-full max-w-md">
+                        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-lg border border-opacity-20 border-white">
+                            <p className="text-lg font-bold">ID Phòng: <span className="text-pink-300">{roomId}</span></p>
+                            {isPlayerCreator && !secondPlayerJoined && (
+                                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
+                                    <button onClick={copyRoomIdToClipboard} className="btn-copy-link w-full">
+                                        <ClipboardIcon className="h-5 w-5 mr-2" /> Sao chép ID
+                                    </button>
+                                    <button onClick={copyInviteLinkToClipboard} className="btn-copy-link w-full">
+                                        <ClipboardIcon className="h-5 w-5 mr-2" /> Sao chép Link
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                
+                <div className="mb-4 flex items-center space-x-4">
+                    <button onClick={handleThemeToggle} className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition duration-300">
+                        {isDarkTheme ? <SunIcon className="h-8 w-8 text-yellow-400" /> : <MoonIcon className="h-8 w-8 text-blue-300" />}
+                    </button>
+                    <div className="flex flex-col items-center">
+                        <label className="text-gray-200 text-sm">Chọn màu của bạn:</label>
+                        <input
+                            type="color"
+                            value={myColor}
+                            onChange={(e) => handleColorChange(e.target.value)}
+                            className="h-10 w-10 rounded-full border-2 border-white cursor-pointer"
+                        />
+                    </div>
+                </div>
+                
+                <div className="w-full max-w-4xl bg-white bg-opacity-10 p-8 rounded-3xl shadow-2xl backdrop-filter backdrop-blur-lg border border-opacity-20 border-white space-y-6">
+                    <div className="flex justify-around text-center mb-6">
+                        {players.map(player => (
+                            <div 
+                                key={player.id}
+                                className={`flex flex-col items-center p-4 rounded-xl shadow-md transition-all duration-300`}
+                            >
+                                <UserIcon className="h-10 w-10 mb-2" style={{ color: player.color }} />
+                                <h3 className="text-xl font-bold">{player.username}</h3>
+                                <p className="text-lg">Score: {player.score}</p>
+                                {secondPlayerJoined && player.isReady && (
+                                    <CheckCircleIcon className="h-6 w-6 text-green-400 mt-2" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {!gameStarted && hasJoined && secondPlayerJoined && isPlayerCreator && (
+                        <div className="flex justify-center mt-4">
+                            <button onClick={handleStartGame} className="btn-start w-48">
+                                <PlayIcon className="h-5 w-5 mr-2" /> Bắt đầu
+                            </button>
+                        </div>
+                    )}
+                    
+                    {gameStarted && (
+                        <div className="text-center">
+                            <p className="text-2xl font-bold mb-4">
+                                Tìm số tiếp theo: <span className="text-pink-400 glowing-text">{nextNumber}</span>
+                            </p>
+                            <div 
+                                ref={gameContainerRef}
+                                className="game-container relative w-full h-[600px] rounded-xl border-4 border-white border-opacity-20"
+                            >
+                                {positions.map(pos => (
+                                    <div 
+                                        key={pos.number}
+                                        onClick={() => handleNumberClick(pos.number)}
+                                        className={`${numberItemClasses(pos.number)} game-numbers-font`}
+                                        style={{ top: pos.top, left: pos.left }}
+                                    >
+                                        {pos.number}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
+                <button onClick={handleLeaveRoom} className="mt-4 btn-leave">
+                    <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" /> Thoát
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default GameRoomPage;

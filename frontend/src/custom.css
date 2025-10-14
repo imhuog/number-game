@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+.text-gradient {
+  background-image: linear-gradient(45deg, #ec4899, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.glowing-shadow-pink {
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.7),
+              0 0 30px rgba(168, 85, 247, 0.5);
+}
+.text-gradient-game {
+  background-image: linear-gradient(45deg, #a855f7, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.glowing-box {
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+.glowing-text {
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8), 0 0 15px rgba(251, 191, 36, 0.6);
+}
+.glowing-shadow-blue {
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.7),
+              0 0 30px rgba(139, 92, 246, 0.5);
+}
+.glowing-shadow-found {
+  box-shadow: 0 0 10px var(--found-color, #fff),
+              0 0 20px var(--found-color, #fff);
+}
+.btn-create {
+    @apply flex items-center justify-center px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:from-purple-700 hover:to-indigo-800 hover:shadow-xl;
+}
+.btn-join {
+    @apply flex items-center justify-center px-4 py-3 bg-gradient-to-r from-pink-500 to-red-600 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:from-pink-600 hover:to-red-700 hover:shadow-xl;
+}
+.btn-copy-link {
+    @apply flex items-center justify-center px-4 py-2 bg-white bg-opacity-20 text-gray-200 font-semibold rounded-full shadow-md transition duration-300;
+    @apply hover:bg-opacity-30;
+}
+.btn-start {
+    @apply flex items-center justify-center px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:bg-green-600 hover:scale-105;
+}
+.btn-leave {
+    @apply flex items-center justify-center px-4 py-2 bg-red-600 text-white font-bold rounded-full shadow-md transition duration-300;
+    @apply hover:bg-red-700 hover:shadow-lg;
+}
+/* Font cho các số trong game - với fallback fonts */
+.game-numbers-font {
+  font-family: 'Caveat', 'Comic Sans MS', cursive, sans-serif;
+  font-weight: 600;
+}
+/* Nền giấy vở cho khung game container */
+.notebook-paper-background {
+  background: 
+    /* Đường kẻ ngang giống vở viết - khoảng cách 20px */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 19px,
+      #ddd8d0 19px,
+      #ddd8d0 21px,
+      transparent 21px,
+      transparent 20px
+    ),
+    /* Nền giấy trắng sáng hơn */
+    linear-gradient(
+      135deg,
+      #fefefe 0%,
+      #fdfdfd 25%,
+      #ffffff 50%,
+      #fcfcfc 75%,
+      #fefefe 100%
+    );
+  
+  /* Đổ bóng và viền giống giấy thật */
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03),
+    inset 1px 0 0 rgba(0, 0, 0, 0.03),
+    inset -1px 0 0 rgba(0, 0, 0, 0.03),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
