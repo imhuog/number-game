@@ -218,7 +218,7 @@ const SoloGamePage = () => {
   };
 
   const handleStartGame = () => {
-    let total = 50;
+    let total = 5;
     if (difficulty === 'medium') total = 100;
     if (difficulty === 'hard') total = 150;
     const numbers = Array.from({ length: total }, (_, i) => i + 1);
