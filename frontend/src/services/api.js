@@ -3,7 +3,7 @@ import axios from "axios";
 // 🌈 Tự động chọn baseURL theo môi trường
 const API_URL =
   process.env.NODE_ENV === "production"
-    ? "https://number-game-l446.onrender.com"   // Render
+    ? "https://number-game-l446.onrender.com/api"   // Render
     : "http://localhost:5000/api";            // Local
 
 const API = axios.create({
