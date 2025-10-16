@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import {
-  PlayIcon, ArrowLeftOnRectangleIcon, SunIcon, MoonIcon, CurrencyDollarIcon
+  PlayIcon, ArrowLeftOnRectangleIcon, SunIcon, MoonIcon, 
+  CurrencyDollarIcon, BookmarkIcon
 } from '@heroicons/react/24/solid';
+import { 
+  saveSoloGame, 
+  getSavedSoloGame, 
+  deleteSavedSoloGame,
+  markGameCompleted,
+  finishSoloGame 
+} from '../services/api';
 import '../custom.css';
 
-// Detect mobile
 const isMobileDevice = () => window.innerWidth <= 768;
 
 const SoloGamePage = () => {
@@ -24,11 +30,13 @@ const SoloGamePage = () => {
   const [username, setUsername] = useState('');
   const [userCoins, setUserCoins] = useState(50);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
+  
   const gameContainerRef = useRef(null);
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Format thời gian
   const formatTime = (ms) => {
     if (ms == null) return '--:--:--';
     const s = Math.floor(ms / 1000);
@@ -38,30 +46,19 @@ const SoloGamePage = () => {
     return `${mm}:${ss}.${cs}`;
   };
 
-  // Lấy config theo số lượng và device
   const getGameConfig = (totalNumbers, isMobile) => {
     if (!isMobile) {
-      // Desktop - giữ nguyên logic cũ
-      if (totalNumbers <= 100) {
-        return { itemSize: 56, fontSize: 20, minDistanceMultiplier: 0.6 };
-      } else if (totalNumbers <= 150) {
-        return { itemSize: 56, fontSize: 20, minDistanceMultiplier: 0.6 };
-      } else {
-        return { itemSize: 56, fontSize: 20, minDistanceMultiplier: 0.6 };
-      }
+      return { itemSize: 56, fontSize: 20, minDistanceMultiplier: 0.6 };
     }
-
-    // Mobile - tối ưu theo số lượng
-    if (totalNumbers <= 100) {
-      return { itemSize: 36, fontSize: 14, minDistanceMultiplier: 0.75 };
+    if (totalNumbers <= 50) {
+      return { itemSize: 37, fontSize: 28, minDistanceMultiplier: 0.75 };
     } else if (totalNumbers <= 150) {
-      return { itemSize: 32, fontSize: 12, minDistanceMultiplier: 0.7 };
+      return { itemSize: 35, fontSize: 20, minDistanceMultiplier: 0.7 };
     } else {
-      return { itemSize: 28, fontSize: 10, minDistanceMultiplier: 0.65 };
+      return { itemSize: 30, fontSize: 15, minDistanceMultiplier: 0.65 };
     }
   };
 
-  // Tạo vị trí random
   const generateRandomPositions = useCallback((shouldShuffle = false) => {
     if (!gameStarted || !grid || grid.length === 0 || !gameContainerRef.current) return;
     
@@ -72,17 +69,11 @@ const SoloGamePage = () => {
     let containerWidth, containerHeight;
     
     if (isMobile) {
-      // MOBILE: Full màn hình
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
-      
-      // Full width
       containerWidth = screenWidth;
-      
-      // Full height trừ đi space cho timer và next number (khoảng 120px)
       containerHeight = screenHeight - 120;
     } else {
-      // DESKTOP: Giữ nguyên logic cũ
       if (totalNumbers <= 100) {
         containerWidth = Math.min(600, gameContainerRef.current.offsetWidth);
         containerHeight = Math.min(500, gameContainerRef.current.offsetHeight);
@@ -95,12 +86,10 @@ const SoloGamePage = () => {
       }
     }
     
-    // Margin nhỏ để tránh edge
     const margin = isMobile ? 4 : 20;
     const availableWidth = Math.max(100, containerWidth - 2 * margin);
     const availableHeight = Math.max(100, containerHeight - 2 * margin);
     
-    // Tính minDistance động
     const approxCellArea = (availableWidth * availableHeight) / Math.max(1, grid.length);
     const approxCellSize = Math.sqrt(approxCellArea);
     
@@ -125,7 +114,6 @@ const SoloGamePage = () => {
       let attempts = 0;
       
       while (!pos && attempts < maxAttempts) {
-        // Đảm bảo số nằm HOÀN TOÀN trong container
         const maxX = availableWidth - config.itemSize;
         const maxY = availableHeight - config.itemSize;
         
@@ -144,7 +132,6 @@ const SoloGamePage = () => {
         attempts++;
       }
       
-      // Fallback với grid layout nếu không tìm được vị trí
       if (!pos) {
         const cols = Math.ceil(Math.sqrt(totalNumbers));
         const index = newPositions.length;
@@ -170,7 +157,7 @@ const SoloGamePage = () => {
     setPositions(newPositions);
   }, [gameStarted, grid]);
 
-  // Khởi tạo
+  // Check for saved game on mount
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -180,6 +167,9 @@ const SoloGamePage = () => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       setUsername(payload.user.username);
+      
+      // Check for saved game
+      checkForSavedGame();
     } catch (err) {
       console.error('Invalid token', err);
       navigate('/');
@@ -187,7 +177,17 @@ const SoloGamePage = () => {
     }
   }, [navigate]);
 
-  // Generate positions when game starts
+  const checkForSavedGame = async () => {
+    try {
+      const response = await getSavedSoloGame();
+      if (response.data.hasSavedGame) {
+        setHasSavedGame(true);
+      }
+    } catch (err) {
+      console.error('Error checking saved game:', err);
+    }
+  };
+
   useEffect(() => {
     if (gameStarted && grid.length > 0 && gameContainerRef.current) {
       if (positions.length === 0) {
@@ -197,7 +197,6 @@ const SoloGamePage = () => {
     }
   }, [gameStarted, grid, positions.length, generateRandomPositions]);
 
-  // Handle resize
   useEffect(() => {
     const onResize = () => {
       if (gameStarted && grid.length > 0) {
@@ -208,22 +207,20 @@ const SoloGamePage = () => {
     return () => window.removeEventListener('resize', onResize);
   }, [gameStarted, grid, generateRandomPositions]);
 
-  // Cleanup timer
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
-  // Handlers
   const handleStartConfiguration = () => {
     setHasConfigured(true);
   };
 
   const handleStartGame = () => {
-    let total = 100;
-    if (difficulty === 'medium') total = 150;
-    if (difficulty === 'hard') total = 200;
+    let total = 10;
+    if (difficulty === 'medium') total = 100;
+    if (difficulty === 'hard') total = 150;
     const numbers = Array.from({ length: total }, (_, i) => i + 1);
     setGrid(numbers);
     setNextNumber(1);
@@ -231,10 +228,85 @@ const SoloGamePage = () => {
     setGameStarted(true);
     setTimeMs(0);
     setPositions([]);
+    setIsResuming(false);
+    
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimeMs((prev) => prev + 100);
     }, 100);
+  };
+
+  const handleResumeGame = async () => {
+    try {
+      const response = await getSavedSoloGame();
+      if (!response.data.hasSavedGame) {
+        toast.error('Không tìm thấy game đã lưu!');
+        return;
+      }
+
+      const saved = response.data.savedGame;
+      
+      // Restore game state
+      setDifficulty(saved.difficulty);
+      setMode(saved.mode);
+      setMyColor(saved.myColor);
+      setGrid(saved.grid);
+      setPositions(saved.positions);
+      setFoundNumbers(saved.foundNumbers);
+      setNextNumber(saved.nextNumber);
+      setTimeMs(saved.timeMs);
+      setIsDarkTheme(saved.isDarkTheme);
+      setGameStarted(true);
+      setHasConfigured(true);
+      setIsResuming(true);
+      setHasSavedGame(false);
+
+      // Resume timer from saved time
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeMs((prev) => prev + 100);
+      }, 100);
+
+      toast.success('Đã load game thành công!');
+    } catch (err) {
+      console.error('Error resuming game:', err);
+      toast.error('Lỗi khi load game!');
+    }
+  };
+
+  const handleSaveGame = async () => {
+    if (!gameStarted) {
+      toast.warn('Không có game nào để lưu!');
+      return;
+    }
+
+    try {
+      const gameData = {
+        difficulty,
+        mode,
+        myColor,
+        grid,
+        positions,
+        foundNumbers,
+        nextNumber,
+        timeMs,
+        isDarkTheme
+      };
+
+      await saveSoloGame(gameData);
+      toast.success('✅ Đã lưu game thành công!');
+      
+      // Stop timer and return to config
+      if (timerRef.current) clearInterval(timerRef.current);
+      setGameStarted(false);
+      setHasConfigured(false);
+      setPositions([]);
+      setHasSavedGame(true);
+      
+    } catch (err) {
+      console.error('Error saving game:', err);
+      toast.error('Lỗi khi lưu game!');
+    }
   };
 
   const handleNumberClick = async (num) => {
@@ -253,14 +325,21 @@ const SoloGamePage = () => {
     if (next > grid.length) {
       setGameStarted(false);
       if (timerRef.current) clearInterval(timerRef.current);
+      
       try {
-        const token = localStorage.getItem('token');
-        await axios.post(
-          'http://localhost:5000/api/solo/finish',
-          { timeMs, difficulty, mode },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Mark game as completed
+        await markGameCompleted('solo');
+        
+        // Save best time
+        await finishSoloGame({ timeMs, difficulty, mode });
+        
         toast.success(`🎉 Hoàn thành trong ${formatTime(timeMs)}! Kết quả đã được lưu!`);
+        
+        // Delete saved game
+        if (isResuming) {
+          await deleteSavedSoloGame();
+          setHasSavedGame(false);
+        }
       } catch (err) {
         console.error(err);
         toast.error(err.response?.data?.msg || 'Không thể lưu kết quả');
@@ -283,13 +362,13 @@ const SoloGamePage = () => {
     setFoundNumbers({});
     setNextNumber(1);
     setTimeMs(0);
+    setIsResuming(false);
   };
 
   const gameRoomClasses = `min-h-screen transition-colors duration-500 ${
     isDarkTheme ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-purple-800 to-indigo-900 text-white'
   }`;
 
-  // Màn hình cấu hình
   if (!hasConfigured) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
@@ -302,6 +381,13 @@ const SoloGamePage = () => {
           </div>
           
           <p className="text-gray-200">Cấu hình trò chơi một mình</p>
+          
+          {hasSavedGame && (
+            <button onClick={handleResumeGame} className="btn-join w-full">
+              🔄 Chơi tiếp ván đã lưu
+            </button>
+          )}
+          
           <div className="space-y-4">
             <div className="flex flex-col items-center space-y-2">
               <label className="text-gray-200">Chọn màu của bạn:</label>
@@ -319,9 +405,9 @@ const SoloGamePage = () => {
                 onChange={(e) => setDifficulty(e.target.value)}
                 className="w-full px-4 py-2 bg-white bg-opacity-20 rounded-full text-white focus:outline-none focus:ring-2 focus:ring-pink-400 cursor-pointer transition duration-300"
               >
-                <option className="text-black" value="easy">Dễ (1-100)</option>
-                <option className="text-black" value="medium">Trung bình (1-150)</option>
-                <option className="text-black" value="hard">Khó (1-200)</option>
+                <option className="text-black" value="easy">Dễ (1-50)</option>
+                <option className="text-black" value="medium">Trung bình (1-100)</option>
+                <option className="text-black" value="hard">Khó (1-150)</option>
               </select>
             </div>
             <div className="space-y-2 text-left">
@@ -355,7 +441,6 @@ const SoloGamePage = () => {
 
   return (
     <div className={gameRoomClasses}>
-      {/* Desktop view - giữ nguyên */}
       {!isMobile && (
         <div className="flex flex-col items-center justify-center p-2">
           <h1 className="text-4xl md:text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
@@ -366,10 +451,22 @@ const SoloGamePage = () => {
               Thời gian: <span className="font-mono text-pink-300">{formatTime(timeMs)}</span>
             </div>
           )}
+          
           <div className="mb-3 flex items-center space-x-3">
             <button onClick={handleThemeToggle} className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition duration-300">
               {isDarkTheme ? <SunIcon className="h-6 w-6 md:h-8 md:w-8 text-yellow-400" /> : <MoonIcon className="h-6 w-6 md:h-8 md:w-8 text-blue-300" />}
             </button>
+            
+            {gameStarted && (
+              <button 
+                onClick={handleSaveGame} 
+                className="p-2 rounded-full bg-green-500 bg-opacity-20 hover:bg-opacity-40 transition duration-300"
+                title="Lưu game"
+              >
+                <BookmarkIcon className="h-6 w-6 md:h-8 md:w-8 text-green-400" />
+              </button>
+            )}
+            
             <div className="flex flex-col items-center">
               <label className="text-gray-200 text-xs md:text-sm">Màu:</label>
               <input
@@ -380,6 +477,7 @@ const SoloGamePage = () => {
               />
             </div>
           </div>
+          
           <div className="w-full max-w-4xl bg-white bg-opacity-10 p-3 md:p-8 rounded-3xl shadow-2xl backdrop-filter backdrop-blur-lg border border-opacity-20 border-white space-y-4">
             <div className="flex justify-center text-center mb-4">
               <div className="flex flex-col items-center p-3 md:p-4 rounded-xl shadow-md transition-all duration-300">
@@ -398,6 +496,7 @@ const SoloGamePage = () => {
                 </div>
               </div>
             </div>
+            
             {!gameStarted && hasConfigured && (
               <div className="flex justify-center mt-4">
                 <button onClick={handleStartGame} className="btn-start w-40 md:w-48">
@@ -405,6 +504,7 @@ const SoloGamePage = () => {
                 </button>
               </div>
             )}
+            
             {gameStarted && (
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-bold mb-3 md:mb-4">
@@ -466,13 +566,13 @@ const SoloGamePage = () => {
               </div>
             )}
           </div>
+          
           <button onClick={handleBackToConfig} className="mt-3 btn-leave text-sm md:text-base">
             <ArrowLeftOnRectangleIcon className="h-4 w-4 md:h-5 md:w-5 mr-2 inline-block" /> Quay lại cấu hình
           </button>
         </div>
       )}
 
-      {/* Mobile view - tối ưu hoàn toàn */}
       {isMobile && !gameStarted && hasConfigured && (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
           <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
@@ -485,10 +585,8 @@ const SoloGamePage = () => {
         </div>
       )}
 
-      {/* Mobile game view - Full screen */}
       {isMobile && gameStarted && (
         <div className="fixed inset-0 flex flex-col" style={{ height: '100vh', width: '100vw' }}>
-          {/* Floating back button */}
           <button 
             onClick={handleBackToConfig}
             className="fixed top-2 left-2 z-50 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
@@ -496,8 +594,16 @@ const SoloGamePage = () => {
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
           </button>
+          
+          <button 
+            onClick={handleSaveGame}
+            className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
+            style={{ width: '40px', height: '40px' }}
+            title="Lưu game"
+          >
+            <BookmarkIcon className="h-5 w-5" />
+          </button>
 
-          {/* Timer và Next Number - compact */}
           <div className="flex-shrink-0 text-center pt-12 pb-2 px-2 bg-gradient-to-b from-purple-900 to-transparent">
             <div className="text-sm font-mono text-pink-300 mb-1">{formatTime(timeMs)}</div>
             <div className="text-lg font-bold">
@@ -505,7 +611,6 @@ const SoloGamePage = () => {
             </div>
           </div>
 
-          {/* Game Container - Full remaining space */}
           <div className="flex-1 relative" style={{ minHeight: 0 }}>
             <div 
               ref={gameContainerRef} 

@@ -1,16 +1,31 @@
 // src/pages/GameRoomPage.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import io from 'socket.io-client';
 import {
   UserIcon, ClipboardIcon, ArrowLeftOnRectangleIcon,
-  PlayIcon, CheckCircleIcon, SunIcon, MoonIcon, CurrencyDollarIcon
+  PlayIcon, CheckCircleIcon, SunIcon, MoonIcon, 
+  CurrencyDollarIcon, BookmarkIcon
 } from '@heroicons/react/24/solid';
 import { toast } from 'react-toastify';
+import { io } from "socket.io-client";
+import {
+  saveMultiplayerGame,
+  getSavedMultiplayerGame,
+  resumeMultiplayerGame,
+  deleteSavedMultiplayerGame,
+  markGameCompleted
+} from '../services/api';
 
-const socket = io('http://localhost:5000');
+const SOCKET_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://number-game-l446.onrender.com"
+    : "http://localhost:5000";
 
-// Detect mobile
+export const socket = io(SOCKET_URL, {
+  transports: ["websocket", "polling"],
+  withCredentials: true,
+});
+
 const isMobileDevice = () => window.innerWidth <= 768;
 
 const GameRoomPage = () => {
@@ -30,12 +45,16 @@ const GameRoomPage = () => {
   const [foundNumbers, setFoundNumbers] = useState({});
   const [positions, setPositions] = useState([]);
   const [userCoins, setUserCoins] = useState(50);
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+  const [savedGameInfo, setSavedGameInfo] = useState(null);
+  const [isResuming, setIsResuming] = useState(false);
+  const [resumeWaiting, setResumeWaiting] = useState(false);
+  const [readyPlayers, setReadyPlayers] = useState([]);
 
   const gameContainerRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- Helpers ---
   const normalizeFoundNumbers = (raw) => {
     if (!raw) return {};
     const out = {};
@@ -48,18 +67,15 @@ const GameRoomPage = () => {
 
   const getPlayerColorById = (id) => players.find(p => p.id === id)?.color || null;
 
-  // Lấy config theo số lượng và device (giống SoloGamePage)
   const getGameConfig = (totalNumbers, isMobile) => {
     if (!isMobile) {
-      // Desktop - giữ nguyên
       return { itemSize: 56, fontSize: 20, minDistanceMultiplier: 0.6 };
     }
 
-    // Mobile - tối ưu theo số lượng
-    if (totalNumbers <= 100) {
-      return { itemSize: 36, fontSize: 25, minDistanceMultiplier: 0.75 };
-    } else if (totalNumbers <= 150) {
-      return { itemSize: 34, fontSize: 16, minDistanceMultiplier: 0.7 };
+    if (totalNumbers <= 50) {
+      return { itemSize: 37, fontSize: 28, minDistanceMultiplier: 0.75 };
+    } else if (totalNumbers <= 100) {
+      return { itemSize: 35, fontSize: 20, minDistanceMultiplier: 0.7 };
     } else {
       return { itemSize: 30, fontSize: 13, minDistanceMultiplier: 0.65 };
     }
@@ -75,14 +91,12 @@ const GameRoomPage = () => {
     let containerWidth, containerHeight;
     
     if (isMobile) {
-      // MOBILE: Full màn hình
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
       
       containerWidth = screenWidth;
-      containerHeight = screenHeight - 120; // Trừ space cho timer và next number
+      containerHeight = screenHeight - 120;
     } else {
-      // DESKTOP: Giữ nguyên logic cũ
       if (totalNumbers <= 100) {
         containerWidth = Math.min(600, gameContainerRef.current.offsetWidth);
         containerHeight = Math.min(500, gameContainerRef.current.offsetHeight);
@@ -99,7 +113,6 @@ const GameRoomPage = () => {
     const availableWidth = Math.max(100, containerWidth - 2 * margin);
     const availableHeight = Math.max(100, containerHeight - 2 * margin);
     
-    // Tính minDistance động
     const approxCellArea = (availableWidth * availableHeight) / Math.max(1, grid.length);
     const approxCellSize = Math.sqrt(approxCellArea);
     
@@ -142,7 +155,6 @@ const GameRoomPage = () => {
         attempts++;
       }
       
-      // Fallback với grid layout nếu không tìm được vị trí
       if (!pos) {
         const cols = Math.ceil(Math.sqrt(totalNumbers));
         const index = newPositions.length;
@@ -169,7 +181,7 @@ const GameRoomPage = () => {
     setPositions(newPositions);
   }, [gameStarted, grid]);
 
-  // --- Socket & lifecycle ---
+  // Socket & lifecycle
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -192,6 +204,9 @@ const GameRoomPage = () => {
     const qp = new URLSearchParams(location.search);
     const r = qp.get('room');
     if (r) setJoinRoomId(r);
+
+    // Check for saved multiplayer game
+    checkForSavedGame();
 
     socket.on('room_state', (data) => {
       setPlayers(data.players || []);
@@ -218,6 +233,8 @@ const GameRoomPage = () => {
       setNextNumber(data.nextNumber || 1);
       setGameStarted(!!data.gameStarted);
       setFoundNumbers(normalizeFoundNumbers(data.foundNumbers || {}));
+      setResumeWaiting(false);
+      setIsResuming(false);
     });
 
     socket.on('number_found', (data) => {
@@ -231,17 +248,17 @@ const GameRoomPage = () => {
       }
     });
 
-    socket.on('game_over', (data) => {
+    socket.on('game_over', async (data) => {
       const { message: gameMessage, coinResults, finalScores } = data;
       
       setPlayers(prevPlayers => 
         prevPlayers.map(player => ({
           ...player,
-          coins: coinResults[player.username]?.newTotal || player.coins
+          coins: coinResults?.[player.username]?.newTotal || player.coins
         }))
       );
 
-      if (coinResults[userUsername]) {
+      if (coinResults && coinResults[userUsername]) {
         setUserCoins(coinResults[userUsername].newTotal);
         
         const coinChange = coinResults[userUsername].change;
@@ -263,12 +280,51 @@ const GameRoomPage = () => {
       setMessage(gameMessage);
       setGameStarted(false);
       setFoundNumbers({});
+      
+      // Mark game as completed and delete saved game
+      try {
+        if (roomId) {
+          await markGameCompleted('multiplayer', roomId);
+          await deleteSavedMultiplayerGame(roomId);
+          setHasSavedGame(false);
+        }
+      } catch (err) {
+        console.error('Error marking game completed:', err);
+      }
+    });
+
+    // Resume multiplayer events
+    socket.on('resume_waiting', (data) => {
+      setMessage(data.message);
+      setReadyPlayers(data.readyPlayers);
+      toast.info(data.message);
+    });
+
+    socket.on('resume_ready', (data) => {
+      setMessage(data.message);
+      setReadyPlayers(data.readyPlayers);
+      toast.success(data.message);
+    });
+
+    socket.on('resume_timeout', (data) => {
+      toast.error(data.message);
+      setResumeWaiting(false);
+      setIsResuming(false);
+      setHasJoined(false);
+      setRoomId('');
+    });
+
+    socket.on('resume_player_left', (data) => {
+      toast.warn(data.message);
+      setReadyPlayers(data.readyPlayers);
+      setMessage(data.message);
     });
 
     socket.on('error', (errMsg) => {
       toast.error(errMsg || 'Error');
       setMessage(errMsg || 'Error');
       setHasJoined(false);
+      setResumeWaiting(false);
     });
 
     return () => {
@@ -276,9 +332,25 @@ const GameRoomPage = () => {
       socket.off('game_state');
       socket.off('number_found');
       socket.off('game_over');
+      socket.off('resume_waiting');
+      socket.off('resume_ready');
+      socket.off('resume_timeout');
+      socket.off('resume_player_left');
       socket.off('error');
     };
-  }, [navigate, location.pathname, location.search, mode, generateRandomPositions, username]);
+  }, [navigate, location.pathname, location.search, mode, generateRandomPositions, username, roomId]);
+
+  const checkForSavedGame = async () => {
+    try {
+      const response = await getSavedMultiplayerGame();
+      if (response.data.hasSavedGame) {
+        setHasSavedGame(true);
+        setSavedGameInfo(response.data);
+      }
+    } catch (err) {
+      console.error('Error checking saved game:', err);
+    }
+  };
 
   useEffect(() => {
     if (gameStarted && grid.length > 0 && gameContainerRef.current) {
@@ -300,7 +372,7 @@ const GameRoomPage = () => {
     return () => window.removeEventListener('resize', onResize);
   }, [gameStarted, grid, generateRandomPositions]);
 
-  // --- handlers ---
+  // Handlers
   const handleCreateRoom = () => {
     socket.emit('create_room', { username, difficulty, mode, color: myColor });
   };
@@ -313,9 +385,99 @@ const GameRoomPage = () => {
     }
   };
 
+  const handleResumeMultiplayer = async () => {
+    if (!savedGameInfo) {
+      toast.error('Không tìm thấy game đã lưu!');
+      return;
+    }
+
+    try {
+      setIsResuming(true);
+      setResumeWaiting(true);
+      setHasJoined(true);
+      
+      const resumeRoomId = savedGameInfo.roomId;
+      setRoomId(resumeRoomId);
+      
+      // Join resume session
+      socket.emit('resume_room', {
+        roomId: resumeRoomId,
+        username,
+        color: myColor
+      });
+      
+      setMessage('Đang chờ người chơi khác tham gia...');
+      
+    } catch (err) {
+      console.error('Error resuming game:', err);
+      toast.error('Lỗi khi load game!');
+      setIsResuming(false);
+      setResumeWaiting(false);
+      setHasJoined(false);
+    }
+  };
+
+  const handleStartResumeGame = async () => {
+    if (!savedGameInfo || readyPlayers.length < 2) {
+      toast.error('Chưa đủ người chơi!');
+      return;
+    }
+
+    try {
+      // Load full game state from DB
+      const response = await resumeMultiplayerGame(savedGameInfo.roomId);
+      const savedGameState = response.data.savedGame;
+      
+      // Emit to start game with saved state
+      socket.emit('start_resume_game', {
+        roomId: savedGameInfo.roomId,
+        savedGameState
+      });
+      
+    } catch (err) {
+      console.error('Error starting resume game:', err);
+      toast.error('Lỗi khi bắt đầu game!');
+    }
+  };
+
   const handleStartGame = () => {
     socket.emit('start_game');
-    setPositions([]); // Reset positions khi start game
+    setPositions([]);
+  };
+
+  const handleSaveGame = async () => {
+    if (!gameStarted || !roomId) {
+      toast.warn('Không có game nào để lưu!');
+      return;
+    }
+
+    try {
+      const gameData = {
+        roomId,
+        players,
+        difficulty,
+        mode,
+        grid,
+        positions,
+        foundNumbers,
+        nextNumber,
+        isDarkTheme,
+        turn: players[0]?.id
+      };
+
+      await saveMultiplayerGame(gameData);
+      toast.success('✅ Đã lưu game thành công!');
+      
+      // Navigate back
+      setGameStarted(false);
+      setHasJoined(false);
+      setRoomId('');
+      navigate('/game');
+      
+    } catch (err) {
+      console.error('Error saving game:', err);
+      toast.error('Lỗi khi lưu game!');
+    }
   };
 
   const handleLeaveRoom = () => {
@@ -325,6 +487,8 @@ const GameRoomPage = () => {
       setHasJoined(false);
       setRoomId('');
       setJoinRoomId('');
+      setResumeWaiting(false);
+      setIsResuming(false);
       navigate('/game');
     } catch (error) {
       console.error('Error leaving room:', error);
@@ -367,7 +531,10 @@ const GameRoomPage = () => {
   const isMobile = isMobileDevice();
   const config = getGameConfig(grid.length, isMobile);
 
-  // --- Render ---
+  // Check if current user is creator from saved game
+  const isCreatorFromSaved = savedGameInfo?.creatorUsername === username;
+
+  // Render
   if (!hasJoined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
@@ -380,6 +547,13 @@ const GameRoomPage = () => {
           </div>
           
           <p className="text-gray-200">Bạn đã sẵn sàng tham gia phòng chơi chưa?</p>
+          
+          {hasSavedGame && (
+            <button onClick={handleResumeMultiplayer} className="btn-join w-full">
+              🔄 Chơi tiếp ván đã lưu
+            </button>
+          )}
+          
           <div className="space-y-4">
             <div className="flex flex-col items-center space-y-2">
               <label className="text-gray-200">Chọn màu của bạn:</label>
@@ -402,9 +576,9 @@ const GameRoomPage = () => {
                     : 'focus:ring-2 focus:ring-pink-400 cursor-pointer'
                 }`}
               >
-                <option className="text-black" value="easy">Dễ (1-100)</option>
-                <option className="text-black" value="medium">Trung bình (1-150)</option>
-                <option className="text-black" value="hard">Khó (1-200)</option>
+                <option className="text-black" value="easy">Dễ (1-50)</option>
+                <option className="text-black" value="medium">Trung bình (1-100)</option>
+                <option className="text-black" value="hard">Khó (1-150)</option>
               </select>
             </div>
             <div className="space-y-2 text-left">
@@ -453,9 +627,45 @@ const GameRoomPage = () => {
     );
   }
 
+  // Resume waiting screen
+  if (resumeWaiting && !gameStarted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
+        <div className="text-center p-8 bg-white bg-opacity-10 rounded-2xl shadow-xl border border-opacity-20 border-white max-w-md w-full space-y-4">
+          <h2 className="text-2xl font-bold mb-4">Chờ người chơi...</h2>
+          <p className="text-gray-200">{message}</p>
+          <p className="text-lg">Người chơi sẵn sàng: {readyPlayers.length}/2</p>
+          
+          <div className="space-y-2">
+            {readyPlayers.map((playerName, idx) => (
+              <div key={idx} className="bg-green-500 bg-opacity-20 rounded-lg p-2">
+                <CheckCircleIcon className="h-5 w-5 text-green-400 inline-block mr-2" />
+                <span>{playerName} đã sẵn sàng</span>
+              </div>
+            ))}
+          </div>
+
+          {readyPlayers.length >= 2 && isCreatorFromSaved && (
+            <button onClick={handleStartResumeGame} className="btn-start w-full">
+              <PlayIcon className="h-5 w-5 mr-2 inline-block" /> Bắt đầu game
+            </button>
+          )}
+
+          {readyPlayers.length >= 2 && !isCreatorFromSaved && (
+            <p className="text-yellow-300">Đang chờ chủ phòng bắt đầu...</p>
+          )}
+
+          <button onClick={handleLeaveRoom} className="btn-leave w-full">
+            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2 inline-block" /> Thoát
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={gameRoomClasses}>
-      {/* Desktop view - giữ nguyên */}
+      {/* Desktop view */}
       {!isMobile && (
         <div className="flex flex-col items-center justify-center p-4">
           <h1 className="text-3xl md:text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
@@ -483,6 +693,17 @@ const GameRoomPage = () => {
             <button onClick={handleThemeToggle} className="p-2 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 transition duration-300">
               {isDarkTheme ? <SunIcon className="h-8 w-8 text-yellow-400" /> : <MoonIcon className="h-8 w-8 text-blue-300" />}
             </button>
+            
+            {gameStarted && (
+              <button 
+                onClick={handleSaveGame} 
+                className="p-2 rounded-full bg-green-500 bg-opacity-20 hover:bg-opacity-40 transition duration-300"
+                title="Lưu game"
+              >
+                <BookmarkIcon className="h-8 w-8 text-green-400" />
+              </button>
+            )}
+            
             <div className="flex flex-col items-center">
               <label className="text-gray-200 text-sm">Chọn màu của bạn:</label>
               <input
@@ -590,7 +811,7 @@ const GameRoomPage = () => {
         </div>
       )}
 
-      {/* Mobile view - tối ưu */}
+      {/* Mobile view - not started */}
       {isMobile && !gameStarted && (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
           <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
@@ -659,8 +880,18 @@ const GameRoomPage = () => {
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
           </button>
 
+          {/* Save button */}
+          <button 
+            onClick={handleSaveGame}
+            className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
+            style={{ width: '40px', height: '40px' }}
+            title="Lưu game"
+          >
+            <BookmarkIcon className="h-5 w-5" />
+          </button>
+
           {/* Players info - compact top right */}
-          <div className="fixed top-2 right-2 z-40 flex space-x-2">
+          <div className="fixed top-12 right-2 z-40 flex space-x-2">
             {players.map(player => (
               <div key={player.id} className="bg-white bg-opacity-10 rounded-lg p-2 backdrop-blur-sm">
                 <div className="flex items-center space-x-1">

@@ -10,6 +10,8 @@ import {
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const ProfilePage = () => {
   const [userInfo, setUserInfo] = useState({ username: '', coins: 50 });
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ const ProfilePage = () => {
           return;
         }
 
-        const response = await axios.get('http://localhost:5000/api/auth/profile', {
+        const response = await axios.get(`${API_URL}/api/auth/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -34,7 +36,6 @@ const ProfilePage = () => {
       } catch (error) {
         console.error('Error fetching profile:', error);
         toast.error('Không thể tải thông tin profile');
-        // Nếu token hết hạn hoặc không hợp lệ
         if (error.response?.status === 401) {
           localStorage.removeItem('token');
           navigate('/');
