@@ -13,7 +13,8 @@ import {
   getSavedMultiplayerGame,
   resumeMultiplayerGame,
   deleteSavedMultiplayerGame,
-  markGameCompleted
+  markGameCompleted,
+  getUserCoins // ⭐ THÊM IMPORT
 } from '../services/api';
 
 const SOCKET_URL =
@@ -54,6 +55,17 @@ const GameRoomPage = () => {
   const gameContainerRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ⭐ HÀM FETCH COINS TỪ SERVER
+  const fetchUserCoins = async () => {
+    try {
+      const response = await getUserCoins();
+      setUserCoins(response.data.coins || 50);
+      console.log('✅ Coins updated from server:', response.data.coins);
+    } catch (err) {
+      console.error('❌ Error fetching coins:', err);
+    }
+  };
 
   const normalizeFoundNumbers = (raw) => {
     if (!raw) return {};
@@ -195,6 +207,9 @@ const GameRoomPage = () => {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userUsername = payload.user.username;
       setUsername(userUsername);
+      
+      // ⭐ FETCH COINS KHI LOAD TRANG
+      fetchUserCoins();
     } catch (err) {
       console.error('Invalid token', err);
       navigate('/');
@@ -205,7 +220,6 @@ const GameRoomPage = () => {
     const r = qp.get('room');
     if (r) setJoinRoomId(r);
 
-    // Check for saved multiplayer game
     checkForSavedGame();
 
     socket.on('room_state', (data) => {
@@ -248,6 +262,7 @@ const GameRoomPage = () => {
       }
     });
 
+    // ⭐ SỬA SOCKET GAME_OVER - FETCH COINS TỪ SERVER
     socket.on('game_over', async (data) => {
       const { message: gameMessage, coinResults, finalScores } = data;
       
@@ -258,20 +273,23 @@ const GameRoomPage = () => {
         }))
       );
 
+      // ⭐ QUAN TRỌNG: FETCH COINS MỚI NHẤT TỪ SERVER
+      await fetchUserCoins();
+
       if (coinResults && coinResults[userUsername]) {
-        setUserCoins(coinResults[userUsername].newTotal);
-        
         const coinChange = coinResults[userUsername].change;
+        const newTotal = coinResults[userUsername].newTotal;
+        
         if (coinChange > 0) {
-          toast.success(`🎉 ${gameMessage} Bạn được +${coinChange} xu! Tổng: ${coinResults[userUsername].newTotal} xu`);
+          toast.success(`🎉 ${gameMessage} Bạn được +${coinChange} xu! Tổng: ${newTotal} xu`);
         } else if (coinChange < 0) {
-          if (coinResults[userUsername].newTotal === 50) {
+          if (newTotal === 50) {
             toast.info(`${gameMessage} Bạn bị -10 xu nhưng đã được reset về 50 xu!`);
           } else {
-            toast.error(`${gameMessage} Bạn bị ${coinChange} xu! Tổng: ${coinResults[userUsername].newTotal} xu`);
+            toast.error(`${gameMessage} Bạn bị ${coinChange} xu! Tổng: ${newTotal} xu`);
           }
         } else {
-          toast.success(`🤝 ${gameMessage} Bạn được +5 xu! Tổng: ${coinResults[userUsername].newTotal} xu`);
+          toast.success(`🤝 ${gameMessage} Bạn được +5 xu! Tổng: ${newTotal} xu`);
         }
       } else {
         toast.info(gameMessage);
@@ -281,7 +299,6 @@ const GameRoomPage = () => {
       setGameStarted(false);
       setFoundNumbers({});
       
-      // Mark game as completed and delete saved game
       try {
         if (roomId) {
           await markGameCompleted('multiplayer', roomId);
@@ -293,7 +310,6 @@ const GameRoomPage = () => {
       }
     });
 
-    // Resume multiplayer events
     socket.on('resume_waiting', (data) => {
       setMessage(data.message);
       setReadyPlayers(data.readyPlayers);
@@ -399,7 +415,6 @@ const GameRoomPage = () => {
       const resumeRoomId = savedGameInfo.roomId;
       setRoomId(resumeRoomId);
       
-      // Join resume session
       socket.emit('resume_room', {
         roomId: resumeRoomId,
         username,
@@ -424,11 +439,9 @@ const GameRoomPage = () => {
     }
 
     try {
-      // Load full game state from DB
       const response = await resumeMultiplayerGame(savedGameInfo.roomId);
       const savedGameState = response.data.savedGame;
       
-      // Emit to start game with saved state
       socket.emit('start_resume_game', {
         roomId: savedGameInfo.roomId,
         savedGameState
@@ -468,7 +481,6 @@ const GameRoomPage = () => {
       await saveMultiplayerGame(gameData);
       toast.success('✅ Đã lưu game thành công!');
       
-      // Navigate back
       setGameStarted(false);
       setHasJoined(false);
       setRoomId('');
@@ -531,10 +543,11 @@ const GameRoomPage = () => {
   const isMobile = isMobileDevice();
   const config = getGameConfig(grid.length, isMobile);
 
-  // Check if current user is creator from saved game
   const isCreatorFromSaved = savedGameInfo?.creatorUsername === username;
 
-  // Render
+  // Render logic remains the same...
+  // (Keep all the existing render code unchanged)
+  
   if (!hasJoined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
@@ -627,7 +640,6 @@ const GameRoomPage = () => {
     );
   }
 
-  // Resume waiting screen
   if (resumeWaiting && !gameStarted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-800 to-indigo-900 text-white p-4">
@@ -665,7 +677,6 @@ const GameRoomPage = () => {
 
   return (
     <div className={gameRoomClasses}>
-      {/* Desktop view */}
       {!isMobile && (
         <div className="flex flex-col items-center justify-center p-4">
           <h1 className="text-3xl md:text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
@@ -811,7 +822,6 @@ const GameRoomPage = () => {
         </div>
       )}
 
-      {/* Mobile view - not started */}
       {isMobile && !gameStarted && (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
           <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
@@ -868,10 +878,8 @@ const GameRoomPage = () => {
         </div>
       )}
 
-      {/* Mobile game view - Full screen */}
       {isMobile && gameStarted && (
         <div className="fixed inset-0 flex flex-col" style={{ height: '100vh', width: '100vw' }}>
-          {/* Floating back button */}
           <button 
             onClick={handleLeaveRoom}
             className="fixed top-2 left-2 z-50 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
@@ -880,7 +888,6 @@ const GameRoomPage = () => {
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
           </button>
 
-          {/* Save button */}
           <button 
             onClick={handleSaveGame}
             className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
@@ -890,7 +897,6 @@ const GameRoomPage = () => {
             <BookmarkIcon className="h-5 w-5" />
           </button>
 
-          {/* Players info - compact top right */}
           <div className="fixed top-12 right-2 z-40 flex space-x-2">
             {players.map(player => (
               <div key={player.id} className="bg-white bg-opacity-10 rounded-lg p-2 backdrop-blur-sm">
@@ -906,14 +912,12 @@ const GameRoomPage = () => {
             ))}
           </div>
 
-          {/* Next Number - compact */}
           <div className="flex-shrink-0 text-center pt-12 pb-2 px-2 bg-gradient-to-b from-purple-900 to-transparent">
             <div className="text-lg font-bold">
               Số: <span className="text-pink-400 text-2xl">{nextNumber}</span>
             </div>
           </div>
 
-          {/* Game Container - Full remaining space */}
           <div className="flex-1 relative" style={{ minHeight: 0 }}>
             <div 
               ref={gameContainerRef} 

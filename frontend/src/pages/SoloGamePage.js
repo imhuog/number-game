@@ -10,7 +10,8 @@ import {
   getSavedSoloGame, 
   deleteSavedSoloGame,
   markGameCompleted,
-  finishSoloGame 
+  finishSoloGame,
+  getUserCoins // ⭐ THÊM IMPORT
 } from '../services/api';
 import '../custom.css';
 
@@ -36,6 +37,17 @@ const SoloGamePage = () => {
   const gameContainerRef = useRef(null);
   const timerRef = useRef(null);
   const navigate = useNavigate();
+
+  // ⭐ HÀM FETCH COINS TỪ SERVER
+  const fetchUserCoins = async () => {
+    try {
+      const response = await getUserCoins();
+      setUserCoins(response.data.coins || 50);
+      console.log('✅ Coins updated from server:', response.data.coins);
+    } catch (err) {
+      console.error('❌ Error fetching coins:', err);
+    }
+  };
 
   const formatTime = (ms) => {
     if (ms == null) return '--:--:--';
@@ -167,6 +179,9 @@ const SoloGamePage = () => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       setUsername(payload.user.username);
+      
+      // ⭐ FETCH COINS KHI LOAD TRANG
+      fetchUserCoins();
       
       // Check for saved game
       checkForSavedGame();
@@ -340,6 +355,9 @@ const SoloGamePage = () => {
           await deleteSavedSoloGame();
           setHasSavedGame(false);
         }
+        
+        // ⭐ FETCH COINS SAU KHI HOÀN THÀNH (nếu có thay đổi)
+        await fetchUserCoins();
       } catch (err) {
         console.error(err);
         toast.error(err.response?.data?.msg || 'Không thể lưu kết quả');
