@@ -149,7 +149,7 @@ let resumeSessions = {};
 const generateGridByDifficulty = (difficulty) => {
   let maxNumber;
   switch (difficulty) {
-    case 'easy': maxNumber = 5; break;
+    case 'easy': maxNumber = 50; break;
     case 'medium': maxNumber = 100; break;
     case 'hard': maxNumber = 150; break;
     default: maxNumber = 100;
