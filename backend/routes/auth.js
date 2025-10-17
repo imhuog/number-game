@@ -81,4 +81,29 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-module.exports = router ;
+// ⭐ THÊM MỚI: Route lấy coins hiện tại của user
+router.get('/coins', async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ msg: 'Không có token, truy cập bị từ chối' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.user.id).select('coins username');
+    
+    if (!user) {
+      return res.status(404).json({ msg: 'Không tìm thấy người dùng' });
+    }
+
+    res.json({
+      coins: user.coins || 50,
+      username: user.username
+    });
+  } catch (err) {
+    console.error('Error fetching coins:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
