@@ -65,7 +65,7 @@ const SoloGamePage = () => {
     if (totalNumbers <= 50) {
       return { itemSize: 37, fontSize: 28, minDistanceMultiplier: 0.75 };
     } else if (totalNumbers <= 150) {
-      return { itemSize: 35, fontSize: 20, minDistanceMultiplier: 0.7 };
+      return { itemSize: 34, fontSize: 17, minDistanceMultiplier: 0.7 };
     } else {
       return { itemSize: 30, fontSize: 15, minDistanceMultiplier: 0.65 };
     }
