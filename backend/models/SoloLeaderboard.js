@@ -12,7 +12,7 @@ const soloLeaderboardSchema = new mongoose.Schema({
     type: String,
     enum: ['easy', 'medium', 'hard'],
     required: true,
-    unique: true
+    unique: true // unique: true đã tự tạo index rồi
   },
   entries: [leaderboardEntrySchema], // Top 100 players
   lastUpdated: {
@@ -21,8 +21,7 @@ const soloLeaderboardSchema = new mongoose.Schema({
   }
 });
 
-// Index để query nhanh
-soloLeaderboardSchema.index({ difficulty: 1 });
+// Không cần thêm index vì unique: true đã tạo index rồi
 
 const SoloLeaderboard = mongoose.model('SoloLeaderboard', soloLeaderboardSchema);
 module.exports = SoloLeaderboard;
