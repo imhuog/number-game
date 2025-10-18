@@ -4,6 +4,13 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// ⭐ Import middleware verifyToken
+const { verifyToken } = require('../middleware/auth');
+
+// ==========================================
+// PUBLIC ROUTES (không cần token)
+// ==========================================
+
 // Route Đăng ký người chơi mới
 router.post('/register', async (req, res) => {
   try {
@@ -18,7 +25,7 @@ router.post('/register', async (req, res) => {
     const newUser = new User({ 
       username, 
       password: hashedPassword,
-      coins: 50 // Đảm bảo mặc định có 50 xu
+      coins: 50
     });
     await newUser.save();
     res.status(201).json({ msg: 'Đăng ký thành công!' });
@@ -42,13 +49,16 @@ router.post('/login', async (req, res) => {
     }
 
     const payload = { user: { id: user.id, username: user.username } };
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+    
+    // ⭐ Token hết hạn sau 7 ngày
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
       res.json({ 
         token, 
         user: { 
+          id: user.id,
           username: user.username, 
-          coins: user.coins || 50 // Đảm bảo luôn trả về coins
+          coins: user.coins || 50
         } 
       });
     });
@@ -57,16 +67,62 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Route lấy thông tin user (bao gồm coins hiện tại)
-router.get('/profile', async (req, res) => {
+// ==========================================
+// PROTECTED ROUTES (cần token)
+// ==========================================
+
+// ⭐ Route verify token - kiểm tra token còn hợp lệ không
+router.get('/verify', verifyToken, async (req, res) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ msg: 'Không có token, truy cập bị từ chối' });
+    // req.user.id đã được set bởi middleware verifyToken
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ msg: 'Người dùng không tồn tại' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.user.id).select('-password');
+    res.json({
+      valid: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        coins: user.coins || 50,
+        totalWins: user.totalWins || 0,
+        totalLosses: user.totalLosses || 0,
+        totalDraws: user.totalDraws || 0
+      }
+    });
+  } catch (err) {
+    console.error('Verify token error:', err.message);
+    res.status(500).json({ msg: 'Lỗi server' });
+  }
+});
+
+// Route lấy thông tin user profile
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ msg: 'Không tìm thấy người dùng' });
+    }
+
+    res.json({
+      username: user.username,
+      coins: user.coins || 50,
+      totalWins: user.totalWins || 0,
+      totalLosses: user.totalLosses || 0,
+      totalDraws: user.totalDraws || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ⭐ Route lấy coins hiện tại của user
+router.get('/coins', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('coins username');
     
     if (!user) {
       return res.status(404).json({ msg: 'Không tìm thấy người dùng' });
@@ -75,35 +131,6 @@ router.get('/profile', async (req, res) => {
     res.json({
       username: user.username,
       coins: user.coins || 50
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ⭐ Verify token - route mới
-router.get('/verify', verifyToken, authController.verifyToken);
-
-// ⭐ Lấy coins - route mới
-router.get('/coins', verifyToken, authController.getCoins);
-// ⭐ THÊM MỚI: Route lấy coins hiện tại của user
-router.get('/coins', async (req, res) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ msg: 'Không có token, truy cập bị từ chối' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.user.id).select('coins username');
-    
-    if (!user) {
-      return res.status(404).json({ msg: 'Không tìm thấy người dùng' });
-    }
-
-    res.json({
-      coins: user.coins || 50,
-      username: user.username
     });
   } catch (err) {
     console.error('Error fetching coins:', err);
