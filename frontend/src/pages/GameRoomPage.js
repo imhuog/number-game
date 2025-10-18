@@ -878,7 +878,7 @@ const GameRoomPage = () => {
         </div>
       )}
 
-     {isMobile && gameStarted && (
+    {isMobile && gameStarted && (
   <div className="fixed inset-0 flex flex-col" style={{ height: '100vh', width: '100vw' }}>
     {/* BUTTON THOÁT - GÓC TRÁI */}
     <button 
@@ -900,8 +900,8 @@ const GameRoomPage = () => {
     </button>
 
     {/* ⭐ LAYOUT MỚI: PLAYER 1 - SỐ - PLAYER 2 */}
-    <div className="fixed top-12 left-0 right-0 z-40 px-2">
-      <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-90 backdrop-blur-sm rounded-xl p-2 shadow-lg">
+    <div className="fixed top-12 left-0 right-0 z-50 px-2">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-2 shadow-2xl border border-white border-opacity-20">
         
         {/* PLAYER 1 - BÊN TRÁI */}
         {players[0] && (
