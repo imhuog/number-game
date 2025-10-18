@@ -879,7 +879,7 @@ const GameRoomPage = () => {
         </div>
       )}
 
-     {isMobile && gameStarted && (
+    {isMobile && gameStarted && (
         <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
           
           <div className="flex-shrink-0 w-full px-2 pt-2 pb-1 z-40">
