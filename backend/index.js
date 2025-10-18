@@ -25,6 +25,7 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+app.options("*", cors()); // ✅ xử lý preflight request cho tất cả route
 
 app.use(express.json());
 
