@@ -879,64 +879,65 @@ const GameRoomPage = () => {
         </div>
       )}
 
-      {isMobile && gameStarted && (
+     {isMobile && gameStarted && (
         <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
-          <button 
-            onClick={handleLeaveRoom}
-            className="fixed top-2 left-2 z-50 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
-            style={{ width: '40px', height: '40px' }}
-          >
-            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-          </button>
+          
+          <div className="flex-shrink-0 w-full px-2 pt-2 pb-1 z-40">
+            <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-2 shadow-2xl border border-white border-opacity-30 relative">
+              
+              <button 
+                onClick={handleLeaveRoom}
+                className="absolute -top-1 -left-1 z-50 bg-red-500 bg-opacity-90 hover:bg-opacity-100 text-white rounded-full p-1.5 shadow-lg transition-all duration-300"
+                style={{ width: '32px', height: '32px' }}
+              >
+                <ArrowLeftOnRectangleIcon className="h-4 w-4" />
+              </button>
 
-          <button 
-            onClick={handleSaveGame}
-            className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
-            style={{ width: '40px', height: '40px' }}
-            title="Lưu game"
-          >
-            <BookmarkIcon className="h-5 w-5" />
-          </button>
-
-          <div className="flex-shrink-0 w-full px-2 pt-12 pb-2 z-40">
-            <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-white border-opacity-30">
+              <button 
+                onClick={handleSaveGame}
+                className="absolute -top-1 -right-1 z-50 bg-green-500 bg-opacity-90 hover:bg-opacity-100 text-white rounded-full p-1.5 shadow-lg transition-all duration-300"
+                style={{ width: '32px', height: '32px' }}
+                title="Lưu game"
+              >
+                <BookmarkIcon className="h-4 w-4" />
+              </button>
               
               {players[0] && (
                 <div className="flex flex-col items-center flex-1">
-                  <div className="flex items-center space-x-1 mb-1">
+                  <div className="flex items-center space-x-1 mb-0.5">
                     <div 
-                      className="w-3 h-3 rounded-full border border-white"
+                      className="w-2.5 h-2.5 rounded-full border border-white"
                       style={{ backgroundColor: players[0].color }}
                     ></div>
-                    <span className="text-xs font-bold truncate max-w-[60px]">{players[0].username}</span>
+                    <span className="text-xs font-bold truncate max-w-[55px]">{players[0].username}</span>
                   </div>
-                  <div className="text-xl font-bold text-pink-400">{players[0].score}</div>
-                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
-                    <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
+                  <div className="text-lg font-bold text-pink-400">{players[0].score}</div>
+                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-1.5 py-0.5">
+                    <CurrencyDollarIcon className="h-2.5 w-2.5 text-yellow-400" />
                     <span className="text-xs font-bold text-yellow-300">{players[0].coins || 50}</span>
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-col items-center justify-center px-3">
-                <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl px-4 py-2 shadow-xl">
-                  <div className="text-xs text-white opacity-80 text-center mb-1">Số:</div>
-                  <div className="text-3xl font-extrabold text-white leading-none">{nextNumber}</div>
+              <div className="flex flex-col items-center justify-center px-2">
+                <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg px-3 py-1.5 shadow-xl">
+                  <div className="text-xs text-white opacity-80 text-center">Số:</div>
+                  <div className="text-2xl font-extrabold text-white leading-none">{nextNumber}</div>
                 </div>
               </div>
 
               {players[1] && (
                 <div className="flex flex-col items-center flex-1">
-                  <div className="flex items-center space-x-1 mb-1">
+                  <div className="flex items-center space-x-1 mb-0.5">
                     <div 
-                      className="w-3 h-3 rounded-full border border-white"
+                      className="w-2.5 h-2.5 rounded-full border border-white"
                       style={{ backgroundColor: players[1].color }}
                     ></div>
-                    <span className="text-xs font-bold truncate max-w-[60px]">{players[1].username}</span>
+                    <span className="text-xs font-bold truncate max-w-[55px]">{players[1].username}</span>
                   </div>
-                  <div className="text-xl font-bold text-pink-400">{players[1].score}</div>
-                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
-                    <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
+                  <div className="text-lg font-bold text-pink-400">{players[1].score}</div>
+                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-1.5 py-0.5">
+                    <CurrencyDollarIcon className="h-2.5 w-2.5 text-yellow-400" />
                     <span className="text-xs font-bold text-yellow-300">{players[1].coins || 50}</span>
                   </div>
                 </div>
