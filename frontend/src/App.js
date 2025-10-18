@@ -76,8 +76,24 @@ function App() {
             />
           </Routes>
 
-          {/* Toast notifications */}
-          <ToastContainer position="top-right" autoClose={1000} />
+          {/* 🎨 Toast notifications - CUSTOM */}
+          <ToastContainer 
+            position="top-right"
+            autoClose={1500}
+            hideProgressBar={false}
+            newestOnTop={true}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+            style={{
+              top: '20px',
+              right: '20px',
+              zIndex: 9999
+            }}
+          />
         </div>
       </AuthProvider>
     </Router>
