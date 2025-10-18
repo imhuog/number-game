@@ -81,6 +81,11 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// ⭐ Verify token - route mới
+router.get('/verify', verifyToken, authController.verifyToken);
+
+// ⭐ Lấy coins - route mới
+router.get('/coins', verifyToken, authController.getCoins);
 // ⭐ THÊM MỚI: Route lấy coins hiện tại của user
 router.get('/coins', async (req, res) => {
   try {
