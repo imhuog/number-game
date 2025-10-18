@@ -164,7 +164,7 @@ const LeaderboardPage = () => {
                           <div className="flex items-center justify-between">
                             {/* Player 1 */}
                             <div className="flex items-center space-x-3 flex-1">
-                              <span className={`text-lg font-bold ${
+                              <span className={`text-base font-bold ${
                                 player1Lead ? 'text-yellow-400' : 'text-gray-400'
                               }`}>
                                 {pair.player1}
@@ -172,7 +172,7 @@ const LeaderboardPage = () => {
                               {pair.player1Wins > 0 && (
                                 <div className="flex items-center space-x-1">
                                   <span className="text-yellow-400">🏅</span>
-                                  <span className="text-lg font-bold text-yellow-300">
+                                  <span className="text-base font-bold text-yellow-300">
                                     {pair.player1Wins}
                                   </span>
                                 </div>
@@ -186,13 +186,13 @@ const LeaderboardPage = () => {
                             <div className="flex items-center space-x-3 flex-1 justify-end">
                               {pair.player2Wins > 0 && (
                                 <div className="flex items-center space-x-1">
-                                  <span className="text-lg font-bold text-yellow-300">
+                                  <span className="text-base font-bold text-yellow-300">
                                     {pair.player2Wins}
                                   </span>
                                   <span className="text-yellow-400">🏅</span>
                                 </div>
                               )}
-                              <span className={`text-lg font-bold ${
+                              <span className={`text-base font-bold ${
                                 player2Lead ? 'text-yellow-400' : 'text-gray-400'
                               }`}>
                                 {pair.player2}
