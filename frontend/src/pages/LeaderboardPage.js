@@ -66,7 +66,7 @@ const LeaderboardPage = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">🏆 Bảng Xếp Hạng</h1>
+          <h1 className="text-2xl font-bold">🏆 Bảng Xếp Hạng</h1>
           <button
             onClick={() => navigate('/choose-mode')}
             className="btn-leave px-4 py-2 rounded-lg"
