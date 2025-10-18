@@ -107,7 +107,7 @@ const GameRoomPage = () => {
       const screenHeight = window.innerHeight;
       
       containerWidth = screenWidth;
-      containerHeight = screenHeight - 120;
+      containerHeight = screenHeight - 85;
     } else {
       if (totalNumbers <= 100) {
         containerWidth = Math.min(600, gameContainerRef.current.offsetWidth);
@@ -544,9 +544,6 @@ const GameRoomPage = () => {
   const config = getGameConfig(grid.length, isMobile);
 
   const isCreatorFromSaved = savedGameInfo?.creatorUsername === username;
-
-  // Render logic remains the same...
-  // (Keep all the existing render code unchanged)
   
   if (!hasJoined) {
     return (
@@ -674,7 +671,6 @@ const GameRoomPage = () => {
       </div>
     );
   }
-// ... (Giữ nguyên tất cả code phía trên đến dòng const isCreatorFromSaved)
 
   return (
     <div className={gameRoomClasses}>
@@ -879,7 +875,7 @@ const GameRoomPage = () => {
         </div>
       )}
 
-    {isMobile && gameStarted && (
+      {isMobile && gameStarted && (
         <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
           
           <div className="flex-shrink-0 w-full px-2 pt-2 pb-1 z-40">
@@ -962,8 +958,11 @@ const GameRoomPage = () => {
                     onClick={() => handleNumberClick(pos.number)}
                     className="game-numbers-font absolute select-none"
                     style={{
-                      left: `${pos.x}px`,
-                      top: `${pos.y}px`,
+                      left: 0,
+                      top: 0,
+                      transform: `translate(${pos.x}px, ${pos.y}px)`,
+                      transition: 'transform 1.05s cubic-bezier(0.25,0.8,0.25,1), color 0.5s ease',
+                      willChange: 'transform, color',
                       width: `${config.itemSize}px`,
                       height: `${config.itemSize}px`,
                       lineHeight: `${config.itemSize}px`,
