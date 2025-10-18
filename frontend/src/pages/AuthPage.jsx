@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, login } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowRightIcon } from '@heroicons/react/24/solid';
 
 const AuthPage = () => {
@@ -10,6 +11,20 @@ const AuthPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
+    const { isAuthenticated, login: authLogin, loading } = useAuth();
+
+    // ⭐ Auto redirect nếu đã đăng nhập
+    useEffect(() => {
+        if (!loading && isAuthenticated) {
+            const redirectPath = localStorage.getItem('redirectAfterLogin');
+            if (redirectPath) {
+                navigate(redirectPath);
+                localStorage.removeItem('redirectAfterLogin');
+            } else {
+                navigate('/choose-mode');
+            }
+        }
+    }, [isAuthenticated, loading, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -18,7 +33,10 @@ const AuthPage = () => {
         try {
             if (isLogin) {
                 const res = await login({ username, password });
-                localStorage.setItem('token', res.data.token);
+                
+                // ⭐ Sử dụng authLogin từ context
+                authLogin(res.data.token, res.data.user);
+                
                 setMessage('Đăng nhập thành công! Đang chuyển hướng...');
 
                 const redirectPath = localStorage.getItem('redirectAfterLogin');
@@ -41,6 +59,18 @@ const AuthPage = () => {
             setMessage(err.response?.data?.msg || 'Đã có lỗi xảy ra.');
         }
     };
+
+    // ⭐ Hiển thị loading khi đang kiểm tra auth
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-400"></div>
+                    <p className="mt-4 text-white text-xl">Đang kiểm tra đăng nhập...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900 overflow-hidden flex flex-col justify-between p-4">
