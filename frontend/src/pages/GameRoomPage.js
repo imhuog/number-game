@@ -880,123 +880,178 @@ const GameRoomPage = () => {
 
   // Thay thế TOÀN BỘ đoạn code {isMobile && gameStarted && ( ... )} 
 // Tìm ở cuối file GameRoomPage.jsx (khoảng dòng 700-800)
-
-{isMobile && gameStarted && (
-  <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
-    {/* BUTTON THOÁT - GÓC TRÁI */}
-    <button 
-      onClick={handleLeaveRoom}
-      className="fixed top-2 left-2 z-50 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
-      style={{ width: '40px', height: '40px' }}
-    >
-      <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-    </button>
-
-    {/* BUTTON LƯU GAME - GÓC PHẢI */}
-    <button 
-      onClick={handleSaveGame}
-      className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
-      style={{ width: '40px', height: '40px' }}
-      title="Lưu game"
-    >
-      <BookmarkIcon className="h-5 w-5" />
-    </button>
-
-    {/* ⭐ HEADER BAR: PLAYER 1 - SỐ - PLAYER 2 - LUÔN Ở TRÊN */}
-    <div className="flex-shrink-0 w-full px-2 pt-12 pb-2 z-40">
-      <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-white border-opacity-30">
-        
-        {/* PLAYER 1 - BÊN TRÁI */}
-        {players[0] && (
-          <div className="flex flex-col items-center flex-1">
-            <div className="flex items-center space-x-1 mb-1">
-              <div 
-                className="w-3 h-3 rounded-full border border-white"
-                style={{ backgroundColor: players[0].color }}
-              ></div>
-              <span className="text-xs font-bold truncate max-w-[60px]">{players[0].username}</span>
-            </div>
-            <div className="text-xl font-bold text-pink-400">{players[0].score}</div>
-            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
-              <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
-              <span className="text-xs font-bold text-yellow-300">{players[0].coins || 50}</span>
-            </div>
-          </div>
-        )}
-
-        {/* SỐ CẦN TÌM - Ở GIỮA */}
-        <div className="flex flex-col items-center justify-center px-3">
-          <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl px-4 py-2 shadow-xl">
-            <div className="text-xs text-white opacity-80 text-center mb-1">Số:</div>
-            <div className="text-3xl font-extrabold text-white leading-none">{nextNumber}</div>
-          </div>
-        </div>
-
-        {/* PLAYER 2 - BÊN PHẢI */}
-        {players[1] && (
-          <div className="flex flex-col items-center flex-1">
-            <div className="flex items-center space-x-1 mb-1">
-              <div 
-                className="w-3 h-3 rounded-full border border-white"
-                style={{ backgroundColor: players[1].color }}
-              ></div>
-              <span className="text-xs font-bold truncate max-w-[60px]">{players[1].username}</span>
-            </div>
-            <div className="text-xl font-bold text-pink-400">{players[1].score}</div>
-            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
-              <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
-              <span className="text-xs font-bold text-yellow-300">{players[1].coins || 50}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-
-    {/* ⭐ GAME GRID - Ở DƯỚI HEADER, CHIẾM HẾT PHẦN CÒN LẠI */}
-    <div className="flex-1 w-full overflow-hidden">
-      <div 
-        ref={gameContainerRef} 
-        className="notebook-paper-background w-full h-full relative"
-      >
-        {positions.map(pos => {
-          const foundById = foundNumbers[pos.number];
-          const foundColor = foundById ? getPlayerColorById(foundById) : null;
-          const defaultTextColor = '#1a202c';
-          const textColor = foundColor || defaultTextColor;
+{isMobile && !gameStarted && (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4">
+          <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
+          <p className="text-lg text-gray-200 mb-4">{message}</p>
           
-          return (
-            <div
-              key={pos.number}
-              onClick={() => handleNumberClick(pos.number)}
-              className="game-numbers-font absolute select-none"
-              style={{
-                left: `${pos.x}px`,
-                top: `${pos.y}px`,
-                width: `${config.itemSize}px`,
-                height: `${config.itemSize}px`,
-                lineHeight: `${config.itemSize}px`,
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                userSelect: 'none',
-                WebkitTapHighlightColor: 'transparent',
-                color: textColor,
-                background: 'transparent',
-                border: 'none',
-                boxShadow: 'none',
-                pointerEvents: 'auto',
-                touchAction: 'manipulation'
-              }}
-              aria-label={`number-${pos.number}`}
+          {roomId && (
+            <div className="mb-4 w-full max-w-sm">
+              <div className="bg-white bg-opacity-10 p-3 rounded-xl shadow-lg border border-opacity-20 border-white text-center">
+                <p className="text-sm font-bold">ID: <span className="text-pink-300">{roomId}</span></p>
+                {isPlayerCreator && !secondPlayerJoined && (
+                  <div className="flex space-x-2 mt-2">
+                    <button onClick={copyRoomIdToClipboard} className="btn-copy-link flex-1 text-xs py-2">
+                      <ClipboardIcon className="h-4 w-4 inline-block" /> ID
+                    </button>
+                    <button onClick={copyInviteLinkToClipboard} className="btn-copy-link flex-1 text-xs py-2">
+                      <ClipboardIcon className="h-4 w-4 inline-block" /> Link
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="w-full max-w-sm bg-white bg-opacity-10 p-4 rounded-2xl shadow-xl space-y-4">
+            <div className="flex justify-around">
+              {players.map(player => (
+                <div key={player.id} className="flex flex-col items-center">
+                  <UserIcon className="h-8 w-8 mb-1" style={{ color: player.color }} />
+                  <h3 className="text-sm font-bold">{player.username}</h3>
+                  <p className="text-xs">Score: {player.score}</p>
+                  <div className="flex items-center space-x-1 mt-1 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5">
+                    <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
+                    <span className="text-xs font-bold text-yellow-300">{player.coins || 50}</span>
+                  </div>
+                  {secondPlayerJoined && player.isReady && (
+                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-1" />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!gameStarted && hasJoined && secondPlayerJoined && isPlayerCreator && (
+              <div className="flex justify-center">
+                <button onClick={handleStartGame} className="btn-start px-6 py-2">
+                  <PlayIcon className="h-5 w-5 mr-2 inline-block" /> Bắt đầu
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button onClick={handleLeaveRoom} className="mt-4 btn-leave px-6 py-2">
+            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2 inline-block" /> Thoát
+          </button>
+        </div>
+      )}
+
+      {isMobile && gameStarted && (
+        <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
+          {/* BUTTON THOÁT - GÓC TRÁI */}
+          <button 
+            onClick={handleLeaveRoom}
+            className="fixed top-2 left-2 z-50 bg-red-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
+            style={{ width: '40px', height: '40px' }}
+          >
+            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+          </button>
+
+          {/* BUTTON LƯU GAME - GÓC PHẢI */}
+          <button 
+            onClick={handleSaveGame}
+            className="fixed top-2 right-2 z-50 bg-green-500 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-2 shadow-lg transition-all duration-300"
+            style={{ width: '40px', height: '40px' }}
+            title="Lưu game"
+          >
+            <BookmarkIcon className="h-5 w-5" />
+          </button>
+
+          {/* ⭐ HEADER BAR: PLAYER 1 - SỐ - PLAYER 2 */}
+          <div className="flex-shrink-0 w-full px-2 pt-12 pb-2 z-40">
+            <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-white border-opacity-30">
+              
+              {/* PLAYER 1 - BÊN TRÁI */}
+              {players[0] && (
+                <div className="flex flex-col items-center flex-1">
+                  <div className="flex items-center space-x-1 mb-1">
+                    <div 
+                      className="w-3 h-3 rounded-full border border-white"
+                      style={{ backgroundColor: players[0].color }}
+                    ></div>
+                    <span className="text-xs font-bold truncate max-w-[60px]">{players[0].username}</span>
+                  </div>
+                  <div className="text-xl font-bold text-pink-400">{players[0].score}</div>
+                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
+                    <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
+                    <span className="text-xs font-bold text-yellow-300">{players[0].coins || 50}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* SỐ CẦN TÌM - Ở GIỮA */}
+              <div className="flex flex-col items-center justify-center px-3">
+                <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl px-4 py-2 shadow-xl">
+                  <div className="text-xs text-white opacity-80 text-center mb-1">Số:</div>
+                  <div className="text-3xl font-extrabold text-white leading-none">{nextNumber}</div>
+                </div>
+              </div>
+
+              {/* PLAYER 2 - BÊN PHẢI */}
+              {players[1] && (
+                <div className="flex flex-col items-center flex-1">
+                  <div className="flex items-center space-x-1 mb-1">
+                    <div 
+                      className="w-3 h-3 rounded-full border border-white"
+                      style={{ backgroundColor: players[1].color }}
+                    ></div>
+                    <span className="text-xs font-bold truncate max-w-[60px]">{players[1].username}</span>
+                  </div>
+                  <div className="text-xl font-bold text-pink-400">{players[1].score}</div>
+                  <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
+                    <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
+                    <span className="text-xs font-bold text-yellow-300">{players[1].coins || 50}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ⭐ GAME GRID */}
+          <div className="flex-1 w-full overflow-hidden">
+            <div 
+              ref={gameContainerRef} 
+              className="notebook-paper-background w-full h-full relative"
             >
-              <span style={{ 
-                fontWeight: 900, 
-                fontSize: `${config.fontSize}px`,
-                textShadow: '0.5px 0.5px 1px rgba(0,0,0,0.15)'
-              }}>{pos.number}</span>
-    </div>
+              {positions.map(pos => {
+                const foundById = foundNumbers[pos.number];
+                const foundColor = foundById ? getPlayerColorById(foundById) : null;
+                const defaultTextColor = '#1a202c';
+                const textColor = foundColor || defaultTextColor;
+                
+                return (
+                  <div
+                    key={pos.number}
+                    onClick={() => handleNumberClick(pos.number)}
+                    className="game-numbers-font absolute select-none"
+                    style={{
+                      left: `${pos.x}px`,
+                      top: `${pos.y}px`,
+                      width: `${config.itemSize}px`,
+                      height: `${config.itemSize}px`,
+                      lineHeight: `${config.itemSize}px`,
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                      color: textColor,
+                      background: 'transparent',
+                      border: 'none',
+                      boxShadow: 'none',
+                      pointerEvents: 'auto',
+                      touchAction: 'manipulation'
+                    }}
+                    aria-label={`number-${pos.number}`}
+                  >
+                    <span style={{ 
+                      fontWeight: 900, 
+                      fontSize: `${config.fontSize}px`,
+                      textShadow: '0.5px 0.5px 1px rgba(0,0,0,0.15)'
+                    }}>{pos.number}</span>
+                  </div>
                 );
               })}
             </div>
@@ -1006,4 +1061,5 @@ const GameRoomPage = () => {
     </div>
   );
 };
+
 export default GameRoomPage;
