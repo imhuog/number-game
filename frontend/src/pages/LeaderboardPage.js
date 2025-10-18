@@ -145,7 +145,7 @@ const LeaderboardPage = () => {
             {/* MULTIPLAYER TAB */}
             {activeTab === 'multiplayer' && (
               <div className="bg-white bg-opacity-10 rounded-xl p-6 backdrop-blur-lg">
-                <h2 className="text-2xl font-bold mb-6 text-center">Head-to-Head Records</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center">Ai là người thắng cuộc</h2>
                 
                 {multiplayerLeaderboard.length === 0 ? (
                   <p className="text-center text-gray-400 py-12">Chưa có trận đấu nào</p>
@@ -164,7 +164,7 @@ const LeaderboardPage = () => {
                           <div className="flex items-center justify-between">
                             {/* Player 1 */}
                             <div className="flex items-center space-x-3 flex-1">
-                              <span className={`text-2xl font-bold ${
+                              <span className={`text-lg font-bold ${
                                 player1Lead ? 'text-yellow-400' : 'text-gray-400'
                               }`}>
                                 {pair.player1}
@@ -172,7 +172,7 @@ const LeaderboardPage = () => {
                               {pair.player1Wins > 0 && (
                                 <div className="flex items-center space-x-1">
                                   <span className="text-yellow-400">🏅</span>
-                                  <span className="text-xl font-bold text-yellow-300">
+                                  <span className="text-lg font-bold text-yellow-300">
                                     {pair.player1Wins}
                                   </span>
                                 </div>
@@ -186,13 +186,13 @@ const LeaderboardPage = () => {
                             <div className="flex items-center space-x-3 flex-1 justify-end">
                               {pair.player2Wins > 0 && (
                                 <div className="flex items-center space-x-1">
-                                  <span className="text-xl font-bold text-yellow-300">
+                                  <span className="text-lg font-bold text-yellow-300">
                                     {pair.player2Wins}
                                   </span>
                                   <span className="text-yellow-400">🏅</span>
                                 </div>
                               )}
-                              <span className={`text-2xl font-bold ${
+                              <span className={`text-lg font-bold ${
                                 player2Lead ? 'text-yellow-400' : 'text-gray-400'
                               }`}>
                                 {pair.player2}
