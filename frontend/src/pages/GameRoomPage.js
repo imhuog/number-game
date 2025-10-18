@@ -996,11 +996,14 @@ const GameRoomPage = () => {
                 fontSize: `${config.fontSize}px`,
                 textShadow: '0.5px 0.5px 1px rgba(0,0,0,0.15)'
               }}>{pos.number}</span>
-        </div>
-          );
-        })}
-      </div>
     </div>
-  </div>
-)}
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 export default GameRoomPage;
