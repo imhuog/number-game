@@ -77,7 +77,7 @@ function App() {
           </Routes>
 
           {/* Toast notifications */}
-          <ToastContainer position="top-right" autoClose={3000} />
+          <ToastContainer position="top-right" autoClose={1000} />
         </div>
       </AuthProvider>
     </Router>
