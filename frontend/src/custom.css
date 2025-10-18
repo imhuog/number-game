@@ -236,9 +236,9 @@
 }
 
 .Toastify__toast--top-right {
-  animation: toastSlideIn 0.3s ease-out !important;
+  animation: toastSlideIn 0.2s ease-out !important;
 }
 
 .Toastify__toast--top-right.Toastify__toast--closing {
-  animation: toastSlideOut 0.3s ease-in !important;
+  animation: toastSlideOut 0.2s ease-in !important;
 }
