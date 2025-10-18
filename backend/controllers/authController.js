@@ -44,7 +44,7 @@ exports.login = async (req, res) => {
             return res.status(400).json({ msg: 'Tên đăng nhập hoặc mật khẩu không đúng' });
         }
 
-        // Tạo JWT token
+        // Tạo JWT token - 7 NGÀY
         const payload = {
             user: {
                 id: user.id,
@@ -61,7 +61,7 @@ exports.login = async (req, res) => {
         jwt.sign(
             payload,
             jwtSecret,
-            { expiresIn: 360000 },
+            { expiresIn: '7d' }, // ⭐ ĐỔI THÀNH 7 NGÀY
             (err, token) => {
                 if (err) throw err;
                 res.json({ token, user: { id: user.id, username: user.username } });
@@ -70,5 +70,51 @@ exports.login = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Lỗi server');
+    }
+};
+
+// ⭐ THÊM MỚI: Verify token và trả về thông tin user
+exports.verifyToken = async (req, res) => {
+    try {
+        // req.user đã được set bởi middleware verifyToken
+        const user = await User.findById(req.user.id).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({ msg: 'Người dùng không tồn tại' });
+        }
+
+        res.json({
+            valid: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                coins: user.coins,
+                totalWins: user.totalWins,
+                totalLosses: user.totalLosses,
+                totalDraws: user.totalDraws
+            }
+        });
+    } catch (err) {
+        console.error('Verify token error:', err.message);
+        res.status(500).json({ msg: 'Lỗi server' });
+    }
+};
+
+// ⭐ THÊM MỚI: Lấy coins hiện tại
+exports.getCoins = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('coins username');
+        
+        if (!user) {
+            return res.status(404).json({ msg: 'Người dùng không tồn tại' });
+        }
+
+        res.json({ 
+            username: user.username,
+            coins: user.coins 
+        });
+    } catch (err) {
+        console.error('Get coins error:', err.message);
+        res.status(500).json({ msg: 'Lỗi server' });
     }
 };
