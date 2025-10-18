@@ -3,8 +3,8 @@ import axios from "axios";
 // 🌈 Tự động chọn baseURL theo môi trường
 const API_URL =
   process.env.NODE_ENV === "production"
-    ? "https://number-game-l446.onrender.com/api"   // Render
-    : "http://localhost:5000/api";            // Local
+    ? "https://number-game-l446.onrender.com/api"
+    : "http://localhost:5000/api";
 
 const API = axios.create({
   baseURL: API_URL,
@@ -20,12 +20,33 @@ API.interceptors.request.use((config) => {
     return config;
 });
 
+// ⭐ Interceptor xử lý lỗi 401 (token hết hạn)
+API.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Token hết hạn hoặc không hợp lệ
+            localStorage.removeItem('token');
+            localStorage.removeItem('redirectAfterLogin');
+            
+            // Redirect về trang login nếu không phải đang ở trang login
+            if (window.location.pathname !== '/') {
+                window.location.href = '/';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Auth APIs
 export const register = (userData) => API.post('/auth/register', userData);
 export const login = (userData) => API.post('/auth/login', userData);
 export const getUserProfile = () => API.get('/auth/profile');
 
-// ⭐ THÊM MỚI: Lấy coins hiện tại từ server
+// ⭐ THÊM MỚI: Verify token
+export const verifyToken = () => API.get('/auth/verify');
+
+// ⭐ Lấy coins hiện tại từ server
 export const getUserCoins = () => API.get('/auth/coins');
 
 // Solo Game APIs
