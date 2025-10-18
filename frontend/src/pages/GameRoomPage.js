@@ -878,8 +878,11 @@ const GameRoomPage = () => {
         </div>
       )}
 
-    {isMobile && gameStarted && (
-  <div className="fixed inset-0 flex flex-col" style={{ height: '100vh', width: '100vw' }}>
+  // Thay thế TOÀN BỘ đoạn code {isMobile && gameStarted && ( ... )} 
+// Tìm ở cuối file GameRoomPage.jsx (khoảng dòng 700-800)
+
+{isMobile && gameStarted && (
+  <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-purple-800 to-indigo-900" style={{ height: '100vh', width: '100vw' }}>
     {/* BUTTON THOÁT - GÓC TRÁI */}
     <button 
       onClick={handleLeaveRoom}
@@ -899,9 +902,9 @@ const GameRoomPage = () => {
       <BookmarkIcon className="h-5 w-5" />
     </button>
 
-    {/* ⭐ LAYOUT MỚI: PLAYER 1 - SỐ - PLAYER 2 */}
-    <div className="fixed top-12 left-0 right-0 z-50 px-2">
-      <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-2 shadow-2xl border border-white border-opacity-20">
+    {/* ⭐ HEADER BAR: PLAYER 1 - SỐ - PLAYER 2 - LUÔN Ở TRÊN */}
+    <div className="flex-shrink-0 w-full px-2 pt-12 pb-2 z-40">
+      <div className="flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 bg-opacity-95 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-white border-opacity-30">
         
         {/* PLAYER 1 - BÊN TRÁI */}
         {players[0] && (
@@ -913,8 +916,8 @@ const GameRoomPage = () => {
               ></div>
               <span className="text-xs font-bold truncate max-w-[60px]">{players[0].username}</span>
             </div>
-            <div className="text-lg font-bold text-pink-400">{players[0].score}</div>
-            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-1.5 py-0.5">
+            <div className="text-xl font-bold text-pink-400">{players[0].score}</div>
+            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
               <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
               <span className="text-xs font-bold text-yellow-300">{players[0].coins || 50}</span>
             </div>
@@ -924,8 +927,8 @@ const GameRoomPage = () => {
         {/* SỐ CẦN TÌM - Ở GIỮA */}
         <div className="flex flex-col items-center justify-center px-3">
           <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl px-4 py-2 shadow-xl">
-            <div className="text-xs text-white opacity-80 text-center">Số:</div>
-            <div className="text-3xl font-extrabold text-white">{nextNumber}</div>
+            <div className="text-xs text-white opacity-80 text-center mb-1">Số:</div>
+            <div className="text-3xl font-extrabold text-white leading-none">{nextNumber}</div>
           </div>
         </div>
 
@@ -939,8 +942,8 @@ const GameRoomPage = () => {
               ></div>
               <span className="text-xs font-bold truncate max-w-[60px]">{players[1].username}</span>
             </div>
-            <div className="text-lg font-bold text-pink-400">{players[1].score}</div>
-            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-1.5 py-0.5">
+            <div className="text-xl font-bold text-pink-400">{players[1].score}</div>
+            <div className="flex items-center space-x-0.5 bg-yellow-500 bg-opacity-20 rounded-full px-2 py-0.5 mt-1">
               <CurrencyDollarIcon className="h-3 w-3 text-yellow-400" />
               <span className="text-xs font-bold text-yellow-300">{players[1].coins || 50}</span>
             </div>
@@ -949,16 +952,11 @@ const GameRoomPage = () => {
       </div>
     </div>
 
-    {/* GAME GRID - PADDING TOP ĐỂ TRÁNH BỊ CHE */}
-    <div className="flex-1 relative" style={{ minHeight: 0, paddingTop: '100px' }}>
+    {/* ⭐ GAME GRID - Ở DƯỚI HEADER, CHIẾM HẾT PHẦN CÒN LẠI */}
+    <div className="flex-1 w-full overflow-hidden">
       <div 
         ref={gameContainerRef} 
-        className="absolute inset-0 notebook-paper-background"
-        style={{
-          width: '100%',
-          height: '100%',
-          overflow: 'hidden'
-        }}
+        className="notebook-paper-background w-full h-full relative"
       >
         {positions.map(pos => {
           const foundById = foundNumbers[pos.number];
@@ -972,11 +970,8 @@ const GameRoomPage = () => {
               onClick={() => handleNumberClick(pos.number)}
               className="game-numbers-font absolute select-none"
               style={{
-                left: 0,
-                top: 0,
-                transform: `translate(${pos.x}px, ${pos.y}px)`,
-                transition: 'transform 1.05s cubic-bezier(0.25,0.8,0.25,1), color 0.5s ease',
-                willChange: 'transform, color',
+                left: `${pos.x}px`,
+                top: `${pos.y}px`,
                 width: `${config.itemSize}px`,
                 height: `${config.itemSize}px`,
                 lineHeight: `${config.itemSize}px`,
