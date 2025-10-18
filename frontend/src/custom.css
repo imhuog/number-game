@@ -1,103 +1,244 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-import './App.css';
-import './custom.css';
-
-// Context
-import { AuthProvider } from './context/AuthContext';
-
-// Components
-import ProtectedRoute from './components/ProtectedRoute';
-
-// Pages
-import AuthPage from './pages/AuthPage';
-import GameRoomPage from './pages/GameRoomPage';
-import ProfilePage from './pages/ProfilePage';
-import SoloGamePage from './pages/SoloGamePage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import ChooseModePage from './pages/ChooseModePage';
-
-function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <div>
-          <Routes>
-            {/* Trang đăng nhập/đăng ký - PUBLIC */}
-            <Route path="/" element={<AuthPage />} />
-
-            {/* ⭐ Các trang cần đăng nhập - PROTECTED */}
-            <Route 
-              path="/choose-mode" 
-              element={
-                <ProtectedRoute>
-                  <ChooseModePage />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/game" 
-              element={
-                <ProtectedRoute>
-                  <GameRoomPage />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/solo" 
-              element={
-                <ProtectedRoute>
-                  <SoloGamePage />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/leaderboard" 
-              element={
-                <ProtectedRoute>
-                  <LeaderboardPage />
-                </ProtectedRoute>
-              } 
-            />
-
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
-
-          {/* 🎨 Toast notifications - CUSTOM */}
-          <ToastContainer 
-            position="top-right"
-            autoClose={1500}
-            hideProgressBar={false}
-            newestOnTop={true}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-            style={{
-              top: '20px',
-              right: '20px',
-              zIndex: 9999
-            }}
-          />
-        </div>
-      </AuthProvider>
-    </Router>
-  );
+/* ========== TEXT & GRADIENT STYLES ========== */
+.text-gradient {
+  background-image: linear-gradient(45deg, #ec4899, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-export default App;
+.text-gradient-game {
+  background-image: linear-gradient(45deg, #a855f7, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ========== GLOWING EFFECTS ========== */
+.glowing-shadow-pink {
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.7),
+              0 0 30px rgba(168, 85, 247, 0.5);
+}
+
+.glowing-shadow-blue {
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.7),
+              0 0 30px rgba(139, 92, 246, 0.5);
+}
+
+.glowing-shadow-found {
+  box-shadow: 0 0 10px var(--found-color, #fff),
+              0 0 20px var(--found-color, #fff);
+}
+
+.glowing-box {
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.glowing-text {
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8), 0 0 15px rgba(251, 191, 36, 0.6);
+}
+
+/* ========== BUTTON STYLES ========== */
+.btn-create {
+    @apply flex items-center justify-center px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:from-purple-700 hover:to-indigo-800 hover:shadow-xl;
+}
+
+.btn-join {
+    @apply flex items-center justify-center px-4 py-3 bg-gradient-to-r from-pink-500 to-red-600 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:from-pink-600 hover:to-red-700 hover:shadow-xl;
+}
+
+.btn-copy-link {
+    @apply flex items-center justify-center px-4 py-2 bg-white bg-opacity-20 text-gray-200 font-semibold rounded-full shadow-md transition duration-300;
+    @apply hover:bg-opacity-30;
+}
+
+.btn-start {
+    @apply flex items-center justify-center px-6 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg transition duration-300;
+    @apply hover:bg-green-600 hover:scale-105;
+}
+
+.btn-leave {
+    @apply flex items-center justify-center px-4 py-2 bg-red-600 text-white font-bold rounded-full shadow-md transition duration-300;
+    @apply hover:bg-red-700 hover:shadow-lg;
+}
+
+/* ========== GAME FONTS ========== */
+/* Font cho các số trong game - với fallback fonts */
+.game-numbers-font {
+  font-family: 'Caveat', 'Comic Sans MS', cursive, sans-serif;
+  font-weight: 600;
+}
+
+/* ========== NOTEBOOK PAPER BACKGROUND ========== */
+/* Nền giấy vở cho khung game container */
+.notebook-paper-background {
+  background: 
+    /* Đường kẻ ngang giống vở viết - khoảng cách 20px */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 19px,
+      #ddd8d0 19px,
+      #ddd8d0 21px,
+      transparent 21px,
+      transparent 20px
+    ),
+    /* Nền giấy trắng sáng hơn */
+    linear-gradient(
+      135deg,
+      #fefefe 0%,
+      #fdfdfd 25%,
+      #ffffff 50%,
+      #fcfcfc 75%,
+      #fefefe 100%
+    );
+  
+  /* Độ bóng và viền giống giấy thật */
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03),
+    inset 1px 0 0 rgba(0, 0, 0, 0.03),
+    inset -1px 0 0 rgba(0, 0, 0, 0.03),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== 🎨 CUSTOM TOAST NOTIFICATIONS ========== */
+
+/* Toast container */
+.Toastify__toast-container {
+  width: 320px !important;
+  padding: 0 !important;
+}
+
+/* Toast chung */
+.Toastify__toast {
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  margin-bottom: 12px !important;
+  min-height: 50px !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* Toast Success - Xanh lá gradient */
+.Toastify__toast--success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: white !important;
+}
+
+/* Toast Error - Đỏ gradient */
+.Toastify__toast--error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  color: white !important;
+}
+
+/* Toast Info - Xanh dương gradient */
+.Toastify__toast--info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  color: white !important;
+}
+
+/* Toast Warning - Vàng cam gradient */
+.Toastify__toast--warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: white !important;
+}
+
+/* Progress bar */
+.Toastify__progress-bar {
+  height: 3px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.Toastify__progress-bar--success {
+  background: rgba(255, 255, 255, 0.5) !important;
+}
+
+.Toastify__progress-bar--error {
+  background: rgba(255, 255, 255, 0.5) !important;
+}
+
+.Toastify__progress-bar--info {
+  background: rgba(255, 255, 255, 0.5) !important;
+}
+
+.Toastify__progress-bar--warning {
+  background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Close button */
+.Toastify__close-button {
+  color: white !important;
+  opacity: 0.8 !important;
+  align-self: center !important;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1 !important;
+}
+
+/* Icon trong toast */
+.Toastify__toast-icon {
+  width: 20px !important;
+  margin-right: 12px !important;
+}
+
+/* Body text */
+.Toastify__toast-body {
+  padding: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* Mobile responsive cho toast */
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container {
+    width: calc(100vw - 32px) !important;
+    left: 16px !important;
+    right: 16px !important;
+    top: 16px !important;
+  }
+  
+  .Toastify__toast {
+    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Animation mượt mà hơn cho toast */
+@keyframes toastSlideIn {
+  from {
+    transform: translate3d(110%, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(110%, 0, 0);
+    opacity: 0;
+  }
+}
+
+.Toastify__toast--top-right {
+  animation: toastSlideIn 0.3s ease-out !important;
+}
+
+.Toastify__toast--top-right.Toastify__toast--closing {
+  animation: toastSlideOut 0.3s ease-in !important;
+}
