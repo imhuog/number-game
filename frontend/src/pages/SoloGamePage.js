@@ -11,11 +11,14 @@ import {
   deleteSavedSoloGame,
   markGameCompleted,
   finishSoloGame,
-  getUserCoins // ⭐ THÊM IMPORT
+  getUserCoins
 } from '../services/api';
 import '../custom.css';
 
 const isMobileDevice = () => window.innerWidth <= 768;
+
+// ⭐ KEY cho localStorage
+const SOLO_TEMP_STATE_KEY = 'soloGameTempState';
 
 const SoloGamePage = () => {
   const [difficulty, setDifficulty] = useState('medium');
@@ -38,7 +41,6 @@ const SoloGamePage = () => {
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
-  // ⭐ HÀM FETCH COINS TỪ SERVER
   const fetchUserCoins = async () => {
     try {
       const response = await getUserCoins();
@@ -70,6 +72,83 @@ const SoloGamePage = () => {
       return { itemSize: 30, fontSize: 15, minDistanceMultiplier: 0.65 };
     }
   };
+
+  // ⭐ HÀM LƯU STATE VÀO LOCALSTORAGE
+  const saveTempState = useCallback(() => {
+    if (!gameStarted) return;
+    
+    const tempState = {
+      difficulty,
+      mode,
+      myColor,
+      grid,
+      positions,
+      foundNumbers,
+      nextNumber,
+      timeMs,
+      isDarkTheme,
+      hasConfigured,
+      timestamp: Date.now()
+    };
+    
+    try {
+      localStorage.setItem(SOLO_TEMP_STATE_KEY, JSON.stringify(tempState));
+    } catch (err) {
+      console.error('Error saving temp state:', err);
+    }
+  }, [gameStarted, difficulty, mode, myColor, grid, positions, foundNumbers, nextNumber, timeMs, isDarkTheme, hasConfigured]);
+
+  // ⭐ HÀM XÓA TEMP STATE
+  const clearTempState = useCallback(() => {
+    try {
+      localStorage.removeItem(SOLO_TEMP_STATE_KEY);
+    } catch (err) {
+      console.error('Error clearing temp state:', err);
+    }
+  }, []);
+
+  // ⭐ HÀM PHỤC HỒI STATE TỪ LOCALSTORAGE
+  const restoreTempState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(SOLO_TEMP_STATE_KEY);
+      if (!saved) return false;
+      
+      const tempState = JSON.parse(saved);
+      
+      // Kiểm tra xem state có quá cũ không (> 1 giờ)
+      const ageMs = Date.now() - tempState.timestamp;
+      if (ageMs > 3600000) {
+        clearTempState();
+        return false;
+      }
+      
+      // Phục hồi state
+      setDifficulty(tempState.difficulty);
+      setMode(tempState.mode);
+      setMyColor(tempState.myColor);
+      setGrid(tempState.grid);
+      setPositions(tempState.positions);
+      setFoundNumbers(tempState.foundNumbers);
+      setNextNumber(tempState.nextNumber);
+      setTimeMs(tempState.timeMs);
+      setIsDarkTheme(tempState.isDarkTheme);
+      setHasConfigured(tempState.hasConfigured);
+      setGameStarted(true);
+      
+      // Tiếp tục timer từ thời gian đã lưu
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeMs((prev) => prev + 100);
+      }, 100);
+      
+      console.log('✅ Restored temp state from localStorage');
+      return true;
+    } catch (err) {
+      console.error('Error restoring temp state:', err);
+      clearTempState();
+      return false;
+    }
+  }, [clearTempState]);
 
   const generateRandomPositions = useCallback((shouldShuffle = false) => {
     if (!gameStarted || !grid || grid.length === 0 || !gameContainerRef.current) return;
@@ -169,7 +248,7 @@ const SoloGamePage = () => {
     setPositions(newPositions);
   }, [gameStarted, grid]);
 
-  // Check for saved game on mount
+  // ⭐ EFFECT: Phục hồi state khi mount
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -180,17 +259,20 @@ const SoloGamePage = () => {
       const payload = JSON.parse(atob(token.split('.')[1]));
       setUsername(payload.user.username);
       
-      // ⭐ FETCH COINS KHI LOAD TRANG
       fetchUserCoins();
-      
-      // Check for saved game
       checkForSavedGame();
+      
+      // ⭐ THỬ PHỤC HỒI TEMP STATE
+      const restored = restoreTempState();
+      if (restored) {
+        toast.info('Đã khôi phục game đang chơi!');
+      }
     } catch (err) {
       console.error('Invalid token', err);
       navigate('/');
       return;
     }
-  }, [navigate]);
+  }, [navigate, restoreTempState]);
 
   const checkForSavedGame = async () => {
     try {
@@ -202,6 +284,17 @@ const SoloGamePage = () => {
       console.error('Error checking saved game:', err);
     }
   };
+
+  // ⭐ EFFECT: Auto-save state mỗi 2 giây khi đang chơi
+  useEffect(() => {
+    if (!gameStarted) return;
+    
+    const interval = setInterval(() => {
+      saveTempState();
+    }, 2000); // Lưu mỗi 2 giây
+    
+    return () => clearInterval(interval);
+  }, [gameStarted, saveTempState]);
 
   useEffect(() => {
     if (gameStarted && grid.length > 0 && gameContainerRef.current) {
@@ -261,7 +354,6 @@ const SoloGamePage = () => {
 
       const saved = response.data.savedGame;
       
-      // Restore game state
       setDifficulty(saved.difficulty);
       setMode(saved.mode);
       setMyColor(saved.myColor);
@@ -276,7 +368,6 @@ const SoloGamePage = () => {
       setIsResuming(true);
       setHasSavedGame(false);
 
-      // Resume timer from saved time
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeMs((prev) => prev + 100);
@@ -311,8 +402,11 @@ const SoloGamePage = () => {
       await saveSoloGame(gameData);
       toast.success('✅ Đã lưu game thành công!');
       
-      // Stop timer and return to config
       if (timerRef.current) clearInterval(timerRef.current);
+      
+      // ⭐ XÓA TEMP STATE khi save thủ công
+      clearTempState();
+      
       setGameStarted(false);
       setHasConfigured(false);
       setPositions([]);
@@ -341,22 +435,20 @@ const SoloGamePage = () => {
       setGameStarted(false);
       if (timerRef.current) clearInterval(timerRef.current);
       
+      // ⭐ XÓA TEMP STATE khi hoàn thành
+      clearTempState();
+      
       try {
-        // Mark game as completed
         await markGameCompleted('solo');
-        
-        // Save best time
         await finishSoloGame({ timeMs, difficulty, mode });
         
         toast.success(`🎉 Hoàn thành trong ${formatTime(timeMs)}! Kết quả đã được lưu!`);
         
-        // Delete saved game
         if (isResuming) {
           await deleteSavedSoloGame();
           setHasSavedGame(false);
         }
         
-        // ⭐ FETCH COINS SAU KHI HOÀN THÀNH (nếu có thay đổi)
         await fetchUserCoins();
       } catch (err) {
         console.error(err);
@@ -373,6 +465,9 @@ const SoloGamePage = () => {
     if (gameStarted) {
       setGameStarted(false);
       if (timerRef.current) clearInterval(timerRef.current);
+      
+      // ⭐ XÓA TEMP STATE khi thoát game
+      clearTempState();
     }
     setHasConfigured(false);
     setPositions([]);
