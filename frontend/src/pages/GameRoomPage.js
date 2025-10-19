@@ -83,11 +83,11 @@ const GameRoomPage = () => {
       username 
     });
     
-    // Reset flag sau 3 giây
+    // Reset flag sau 2 giây (giảm từ 3s)
     setTimeout(() => {
       hasAttemptedReconnect.current = false;
       setIsReconnecting(false);
-    }, 3000);
+    }, 2000);
   }, [roomId, username]);
 
   const normalizeFoundNumbers = (raw) => {
@@ -144,9 +144,14 @@ const GameRoomPage = () => {
       }
     }
     
-    const margin = isMobile ? 20 : 20;
-    const availableWidth = Math.max(100, containerWidth - 2 * margin);
-    const availableHeight = Math.max(100, containerHeight - 2 * margin);
+    // ⭐ TĂNG MARGIN CHO MOBILE - đặc biệt là bottom margin
+    const marginTop = isMobile ? 8 : 20;
+    const marginBottom = isMobile ? 25 : 20; // ⭐ Tăng margin bottom cho mobile
+    const marginLeft = isMobile ? 4 : 20;
+    const marginRight = isMobile ? 4 : 20;
+    
+    const availableWidth = Math.max(100, containerWidth - marginLeft - marginRight);
+    const availableHeight = Math.max(100, containerHeight - marginTop - marginBottom);
     
     const approxCellArea = (availableWidth * availableHeight) / Math.max(1, grid.length);
     const approxCellSize = Math.sqrt(approxCellArea);
@@ -175,8 +180,8 @@ const GameRoomPage = () => {
         const maxX = availableWidth - config.itemSize;
         const maxY = availableHeight - config.itemSize;
         
-        const randX = margin + Math.random() * Math.max(0, maxX);
-        const randY = margin + Math.random() * Math.max(0, maxY);
+        const randX = marginLeft + Math.random() * Math.max(0, maxX);
+        const randY = marginTop + Math.random() * Math.max(0, maxY);
         
         const tooClose = newPositions.some(p => {
           const dx = p.x - randX;
@@ -200,8 +205,8 @@ const GameRoomPage = () => {
         
         pos = {
           number: num,
-          x: margin + col * cellWidth + Math.random() * (cellWidth - config.itemSize),
-          y: margin + row * cellHeight + Math.random() * (cellHeight - config.itemSize)
+          x: marginLeft + col * cellWidth + Math.random() * (cellWidth - config.itemSize),
+          y: marginTop + row * cellHeight + Math.random() * (cellHeight - config.itemSize)
         };
       }
       newPositions.push(pos);
