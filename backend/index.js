@@ -162,6 +162,7 @@ app.use('/api/multiplayer', multiplayerRoutes);
 // GAME STATE
 let rooms = {};
 let resumeSessions = {};
+let disconnectTimers = {}; // ⭐ THÊM: Track disconnect timers
 
 const generateGridByDifficulty = (difficulty) => {
   let maxNumber;
@@ -279,6 +280,15 @@ io.on('connection', (socket) => {
     if (existingPlayer) {
       existingPlayer.id = socket.id;
       socket.join(roomId);
+      
+      // ⭐ THÊM: Clear disconnect timer khi rejoin
+      const timerKey = `${roomId}-${username}`;
+      if (disconnectTimers[timerKey]) {
+        clearTimeout(disconnectTimers[timerKey]);
+        delete disconnectTimers[timerKey];
+        console.log(`⏰ Cleared disconnect timer for ${username} on join`);
+      }
+      
       io.to(roomId).emit('room_state', room);
       return;
     }
@@ -569,10 +579,75 @@ io.on('connection', (socket) => {
     socket.leave(roomId);
   });
   
+  // ⭐ THÊM MỚI: Reconnect to room
+  socket.on('reconnect_to_room', async (data) => {
+    const { roomId, username } = data;
+    console.log(`🔄 Reconnect attempt: ${username} to room ${roomId}`);
+    
+    const room = rooms[roomId];
+    
+    if (!room) {
+      console.log(`❌ Room ${roomId} not found`);
+      socket.emit('error', 'Phòng không tồn tại hoặc đã kết thúc.');
+      return;
+    }
+    
+    // Tìm player cũ theo username
+    const playerIndex = room.players.findIndex(p => p.username === username);
+    
+    if (playerIndex !== -1) {
+      const oldSocketId = room.players[playerIndex].id;
+      
+      // ⭐ Cập nhật socket ID mới
+      room.players[playerIndex].id = socket.id;
+      console.log(`✅ Updated socket ID for ${username}: ${oldSocketId} -> ${socket.id}`);
+      
+      // Clear disconnect timer
+      const timerKey = `${roomId}-${username}`;
+      if (disconnectTimers[timerKey]) {
+        clearTimeout(disconnectTimers[timerKey]);
+        delete disconnectTimers[timerKey];
+        console.log(`⏰ Cleared disconnect timer for ${username}`);
+      }
+      
+      // Rejoin room
+      socket.join(roomId);
+      
+      // Load coins mới nhất từ DB
+      try {
+        const user = await User.findOne({ username }).select('coins');
+        if (user) {
+          room.players[playerIndex].coins = user.coins;
+        }
+      } catch (err) {
+        console.error('Error loading coins:', err);
+      }
+      
+      // Notify tất cả players
+      io.to(roomId).emit('player_reconnected', {
+        username,
+        message: `${username} đã kết nối lại!`
+      });
+      
+      // Send lại room/game state cho player reconnect
+      if (room.gameStarted) {
+        socket.emit('game_state', room);
+      } else {
+        socket.emit('room_state', room);
+      }
+      
+      console.log(`✅ ${username} successfully reconnected to room ${roomId}`);
+    } else {
+      console.log(`❌ Player ${username} not found in room ${roomId}`);
+      socket.emit('error', 'Không tìm thấy bạn trong phòng này.');
+    }
+  });
+  
+  // ⭐ CẬP NHẬT: disconnect handler với grace period
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
     
-    // Check resume sessions
+    // ===== XỬ LÝ RESUME SESSIONS =====
     for (const roomId in resumeSessions) {
       const session = resumeSessions[roomId];
       const playerIndex = session.players.findIndex(p => p.id === socket.id);
@@ -594,22 +669,63 @@ io.on('connection', (socket) => {
       }
     }
     
-    // Check active rooms
+    // ===== XỬ LÝ ACTIVE ROOMS - ⭐ THÊM GRACE PERIOD =====
     for (const roomId in rooms) {
       const room = rooms[roomId];
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       
       if (playerIndex !== -1) {
-        room.players.splice(playerIndex, 1);
+        const disconnectedPlayer = room.players[playerIndex];
+        const disconnectedUsername = disconnectedPlayer.username;
         
-        if (room.players.length === 1) {
-          room.message = 'Một người chơi đã thoát. Đang chờ người chơi mới...';
-          room.turn = room.players[0].id;
-          io.to(roomId).emit('room_state', room);
-        } else if (room.players.length === 0) {
-          delete rooms[roomId];
-          console.log(`Room ${roomId} deleted.`);
+        console.log(`⚠️ Player ${disconnectedUsername} (${socket.id}) disconnected from room ${roomId}`);
+        
+        // ⭐ Notify người còn lại về disconnect
+        io.to(roomId).emit('player_disconnected', {
+          username: disconnectedUsername,
+          message: `${disconnectedUsername} bị mất kết nối. Đang chờ kết nối lại...`
+        });
+        
+        // ⭐ CHỜ 45 GIÂY trước khi xóa player
+        const timerKey = `${roomId}-${disconnectedUsername}`;
+        
+        // Clear timer cũ nếu có
+        if (disconnectTimers[timerKey]) {
+          clearTimeout(disconnectTimers[timerKey]);
         }
+        
+        disconnectTimers[timerKey] = setTimeout(() => {
+          console.log(`⏰ Timeout for ${disconnectedUsername} in room ${roomId}`);
+          
+          // Kiểm tra lại xem player đã reconnect chưa
+          const currentRoom = rooms[roomId];
+          if (!currentRoom) {
+            delete disconnectTimers[timerKey];
+            return;
+          }
+          
+          const stillDisconnected = currentRoom.players.findIndex(
+            p => p.username === disconnectedUsername && p.id === socket.id
+          );
+          
+          if (stillDisconnected !== -1) {
+            // Xóa player sau 45s
+            console.log(`❌ Removing ${disconnectedUsername} from room ${roomId} after timeout`);
+            currentRoom.players.splice(stillDisconnected, 1);
+            
+            if (currentRoom.players.length === 1) {
+              currentRoom.message = 'Một người chơi đã thoát. Đang chờ người chơi mới...';
+              currentRoom.gameStarted = false;
+              io.to(roomId).emit('room_state', currentRoom);
+            } else if (currentRoom.players.length === 0) {
+              delete rooms[roomId];
+              console.log(`🗑️ Room ${roomId} deleted after timeout.`);
+            }
+          }
+          
+          delete disconnectTimers[timerKey];
+        }, 45000); // 45 giây
+        
         break;
       }
     }
