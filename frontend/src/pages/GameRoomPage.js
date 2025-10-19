@@ -144,7 +144,7 @@ const GameRoomPage = () => {
       }
     }
     
-    const margin = isMobile ? 4 : 20;
+    const margin = isMobile ? 8 : 20;
     const availableWidth = Math.max(100, containerWidth - 2 * margin);
     const availableHeight = Math.max(100, containerHeight - 2 * margin);
     
