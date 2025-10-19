@@ -29,6 +29,9 @@ export const socket = io(SOCKET_URL, {
 
 const isMobileDevice = () => window.innerWidth <= 768;
 
+// ⭐ KEY cho localStorage
+const MULTIPLAYER_TEMP_STATE_KEY = 'multiplayerGameTempState';
+
 const GameRoomPage = () => {
   const [players, setPlayers] = useState([]);
   const [grid, setGrid] = useState([]);
@@ -51,10 +54,10 @@ const GameRoomPage = () => {
   const [isResuming, setIsResuming] = useState(false);
   const [resumeWaiting, setResumeWaiting] = useState(false);
   const [readyPlayers, setReadyPlayers] = useState([]);
-  const [isReconnecting, setIsReconnecting] = useState(false); // ⭐ THÊM MỚI
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const gameContainerRef = useRef(null);
-  const hasAttemptedReconnect = useRef(false); // ⭐ THÊM MỚI
+  const hasAttemptedReconnect = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -69,7 +72,65 @@ const GameRoomPage = () => {
     }
   };
 
-  // ⭐ THÊM MỚI: Function xử lý reconnect
+  // ⭐ HÀM LƯU TEMP STATE
+  const saveTempState = useCallback(() => {
+    if (!hasJoined || !roomId) return;
+    
+    const tempState = {
+      roomId,
+      username,
+      hasJoined,
+      gameStarted,
+      difficulty,
+      mode,
+      myColor,
+      isDarkTheme,
+      timestamp: Date.now()
+    };
+    
+    try {
+      localStorage.setItem(MULTIPLAYER_TEMP_STATE_KEY, JSON.stringify(tempState));
+      console.log('💾 Saved multiplayer temp state');
+    } catch (err) {
+      console.error('Error saving multiplayer temp state:', err);
+    }
+  }, [hasJoined, roomId, username, gameStarted, difficulty, mode, myColor, isDarkTheme]);
+
+  // ⭐ HÀM XÓA TEMP STATE
+  const clearTempState = useCallback(() => {
+    try {
+      localStorage.removeItem(MULTIPLAYER_TEMP_STATE_KEY);
+      console.log('🗑️ Cleared multiplayer temp state');
+    } catch (err) {
+      console.error('Error clearing multiplayer temp state:', err);
+    }
+  }, []);
+
+  // ⭐ HÀM PHỤC HỒI TEMP STATE
+  const restoreTempState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(MULTIPLAYER_TEMP_STATE_KEY);
+      if (!saved) return null;
+      
+      const tempState = JSON.parse(saved);
+      
+      // Kiểm tra xem state có quá cũ không (> 10 phút)
+      const ageMs = Date.now() - tempState.timestamp;
+      if (ageMs > 600000) { // 10 phút
+        clearTempState();
+        return null;
+      }
+      
+      console.log('✅ Found multiplayer temp state:', tempState);
+      return tempState;
+    } catch (err) {
+      console.error('Error restoring multiplayer temp state:', err);
+      clearTempState();
+      return null;
+    }
+  }, [clearTempState]);
+
+  // ⭐ HÀM RECONNECT
   const handleReconnect = useCallback(() => {
     if (!roomId || !username || hasAttemptedReconnect.current) return;
     
@@ -77,13 +138,11 @@ const GameRoomPage = () => {
     hasAttemptedReconnect.current = true;
     setIsReconnecting(true);
     
-    // Emit reconnect event
     socket.emit('reconnect_to_room', { 
       roomId, 
       username 
     });
     
-    // Reset flag sau 2 giây (giảm từ 3s)
     setTimeout(() => {
       hasAttemptedReconnect.current = false;
       setIsReconnecting(false);
@@ -144,9 +203,8 @@ const GameRoomPage = () => {
       }
     }
     
-    // ⭐ TĂNG MARGIN CHO MOBILE - đặc biệt là bottom margin
     const marginTop = isMobile ? 8 : 20;
-    const marginBottom = isMobile ? 25 : 20; // ⭐ Tăng margin bottom cho mobile
+    const marginBottom = isMobile ? 25 : 20;
     const marginLeft = isMobile ? 4 : 20;
     const marginRight = isMobile ? 4 : 20;
     
@@ -221,7 +279,7 @@ const GameRoomPage = () => {
     setPositions(newPositions);
   }, [gameStarted, grid]);
 
-  // Socket & lifecycle
+  // ⭐ SOCKET & LIFECYCLE - ĐÃ SỬA ĐỂ PHỤC HỒI TEMP STATE
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -236,7 +294,6 @@ const GameRoomPage = () => {
       userUsername = payload.user.username;
       setUsername(userUsername);
       
-      // ⭐ FETCH COINS KHI LOAD TRANG
       fetchUserCoins();
     } catch (err) {
       console.error('Invalid token', err);
@@ -244,11 +301,30 @@ const GameRoomPage = () => {
       return;
     }
 
-    const qp = new URLSearchParams(location.search);
-    const r = qp.get('room');
-    if (r) setJoinRoomId(r);
+    // ⭐ THỬ PHỤC HỒI STATE TỪ RELOAD
+    const tempState = restoreTempState();
+    if (tempState && tempState.username === userUsername) {
+      console.log('🔄 Attempting to restore multiplayer game...');
+      
+      setDifficulty(tempState.difficulty);
+      setMode(tempState.mode);
+      setMyColor(tempState.myColor);
+      setIsDarkTheme(tempState.isDarkTheme);
+      setRoomId(tempState.roomId);
+      setHasJoined(true);
+      
+      setTimeout(() => {
+        handleReconnect();
+      }, 500);
+      
+      toast.info('Đang kết nối lại phòng game...');
+    } else {
+      const qp = new URLSearchParams(location.search);
+      const r = qp.get('room');
+      if (r) setJoinRoomId(r);
 
-    checkForSavedGame();
+      checkForSavedGame();
+    }
 
     socket.on('room_state', (data) => {
       setPlayers(data.players || []);
@@ -290,7 +366,6 @@ const GameRoomPage = () => {
       }
     });
 
-    // ⭐ SỬA SOCKET GAME_OVER - FETCH COINS TỪ SERVER
     socket.on('game_over', async (data) => {
       const { message: gameMessage, coinResults, finalScores } = data;
       
@@ -301,7 +376,6 @@ const GameRoomPage = () => {
         }))
       );
 
-      // ⭐ QUAN TRỌNG: FETCH COINS MỚI NHẤT TỪ SERVER
       await fetchUserCoins();
 
       if (coinResults && coinResults[userUsername]) {
@@ -326,6 +400,8 @@ const GameRoomPage = () => {
       setMessage(gameMessage);
       setGameStarted(false);
       setFoundNumbers({});
+      
+      clearTempState();
       
       try {
         if (roomId) {
@@ -356,6 +432,7 @@ const GameRoomPage = () => {
       setIsResuming(false);
       setHasJoined(false);
       setRoomId('');
+      clearTempState();
     });
 
     socket.on('resume_player_left', (data) => {
@@ -364,28 +441,21 @@ const GameRoomPage = () => {
       setMessage(data.message);
     });
 
-    // ⭐ THÊM MỚI: Lắng nghe disconnect/reconnect events
     socket.on('player_disconnected', (data) => {
       console.log('⚠️ Player disconnected:', data.username);
-      // ⭐ KHÔNG CẬP NHẬT MESSAGE - hoàn toàn im lặng
-      // Bỏ: setMessage(data.message);
     });
 
     socket.on('player_reconnected', (data) => {
       console.log('✅ Player reconnected:', data.username);
-      // ⭐ KHÔNG CẬP NHẬT MESSAGE - hoàn toàn im lặng
-      // Bỏ: setMessage(data.message);
     });
 
     socket.on('error', (errMsg) => {
-      // ⭐ KIỂM TRA: chỉ hiện toast nếu KHÔNG phải lỗi reconnect
       if (errMsg && !errMsg.includes('không tồn tại') && !errMsg.includes('không tìm thấy')) {
         toast.error(errMsg || 'Error');
         setMessage(errMsg || 'Error');
         setHasJoined(false);
         setResumeWaiting(false);
       } else {
-        // Lỗi reconnect - chỉ log, không hiện gì
         console.log('Reconnect error (silent):', errMsg);
       }
     });
@@ -399,26 +469,35 @@ const GameRoomPage = () => {
       socket.off('resume_ready');
       socket.off('resume_timeout');
       socket.off('resume_player_left');
-      socket.off('player_disconnected'); // ⭐ THÊM
-      socket.off('player_reconnected'); // ⭐ THÊM
+      socket.off('player_disconnected');
+      socket.off('player_reconnected');
       socket.off('error');
     };
-  }, [navigate, location.pathname, location.search, mode, generateRandomPositions, username, roomId, fetchUserCoins]);
+  }, [navigate, location.pathname, location.search, mode, generateRandomPositions, restoreTempState, handleReconnect, clearTempState, fetchUserCoins]);
 
-  // ⭐ THÊM MỚI: useEffect xử lý page visibility & reconnection
+  // ⭐ AUTO-SAVE TEMP STATE
+  useEffect(() => {
+    if (!hasJoined || !roomId) return;
+    
+    const interval = setInterval(() => {
+      saveTempState();
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [hasJoined, roomId, saveTempState]);
+
+  // ⭐ PAGE VISIBILITY & RECONNECTION
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && hasJoined && roomId) {
         console.log('📱 App resumed, checking connection...');
         
-        // ⭐ GIẢM THỜI GIAN CHỜ: 300ms thay vì 500ms
         setTimeout(() => {
           if (!socket.connected) {
             console.log('🔌 Socket disconnected, reconnecting...');
             socket.connect();
           }
           
-          // ⭐ GIẢM DELAY: 150ms thay vì 300ms
           setTimeout(() => {
             handleReconnect();
           }, 150);
@@ -429,19 +508,17 @@ const GameRoomPage = () => {
     const handleOnline = () => {
       if (hasJoined && roomId) {
         console.log('🌐 Network restored, reconnecting...');
-        setTimeout(() => handleReconnect(), 300); // ⭐ Giảm từ 500ms
+        setTimeout(() => handleReconnect(), 300);
       }
     };
     
-    // Lắng nghe sự kiện
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('online', handleOnline);
     
-    // Socket reconnection event
     socket.on('connect', () => {
       console.log('🔌 Socket connected:', socket.id);
       if (hasJoined && roomId && !hasAttemptedReconnect.current) {
-        setTimeout(() => handleReconnect(), 300); // ⭐ Giảm từ 500ms
+        setTimeout(() => handleReconnect(), 300);
       }
     });
     
@@ -577,6 +654,8 @@ const GameRoomPage = () => {
       await saveMultiplayerGame(gameData);
       toast.success('✅ Đã lưu game thành công!');
       
+      clearTempState();
+      
       setGameStarted(false);
       setHasJoined(false);
       setRoomId('');
@@ -591,8 +670,9 @@ const GameRoomPage = () => {
   const handleLeaveRoom = () => {
     console.log('Leave room clicked');
     try {
-      // ⭐ Reset reconnect flag
       hasAttemptedReconnect.current = false;
+      
+      clearTempState();
       
       socket.emit('leave_room', { roomId, username });
       setHasJoined(false);
@@ -778,8 +858,6 @@ const GameRoomPage = () => {
           <h1 className="text-3xl md:text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
           <p className="text-lg md:text-xl text-gray-200 mb-4">{message}</p>
           
-          {/* ⭐ XÓA PHẦN HIỂN THỊ RECONNECTING - kết nối ngầm */}
-          
           {roomId && (
             <div className="mb-4 space-y-2 text-center w-full max-w-md">
               <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-lg border border-opacity-20 border-white">
@@ -924,8 +1002,6 @@ const GameRoomPage = () => {
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
           <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
           <p className="text-lg text-gray-200 mb-4">{message}</p>
-          
-          {/* ⭐ XÓA PHẦN HIỂN THỊ RECONNECTING CHO MOBILE */}
           
           {roomId && (
             <div className="mb-4 w-full max-w-sm">
