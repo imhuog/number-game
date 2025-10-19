@@ -317,7 +317,7 @@ const GameRoomPage = () => {
         handleReconnect();
       }, 500);
       
-      toast.info('Đang kết nối lại phòng game...');
+      // ⭐ ĐÃ XÓA toast.info - reconnect ngầm, không hiện thông báo
     } else {
       const qp = new URLSearchParams(location.search);
       const r = qp.get('room');
