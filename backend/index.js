@@ -680,11 +680,8 @@ io.on('connection', (socket) => {
         
         console.log(`⚠️ Player ${disconnectedUsername} (${socket.id}) disconnected from room ${roomId}`);
         
-        // ⭐ Notify người còn lại về disconnect
-        io.to(roomId).emit('player_disconnected', {
-          username: disconnectedUsername,
-          message: `${disconnectedUsername} bị mất kết nối. Đang chờ kết nối lại...`
-        });
+        // ⭐ KHÔNG EMIT player_disconnected - kết nối ngầm
+        // Bỏ dòng này: io.to(roomId).emit('player_disconnected', {...});
         
         // ⭐ CHỜ 45 GIÂY trước khi xóa player
         const timerKey = `${roomId}-${disconnectedUsername}`;
