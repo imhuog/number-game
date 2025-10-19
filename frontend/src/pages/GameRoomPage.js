@@ -367,21 +367,27 @@ const GameRoomPage = () => {
     // ⭐ THÊM MỚI: Lắng nghe disconnect/reconnect events
     socket.on('player_disconnected', (data) => {
       console.log('⚠️ Player disconnected:', data.username);
-      toast.warn(data.message, { autoClose: 5000 });
-      setMessage(data.message);
+      // ⭐ KHÔNG CẬP NHẬT MESSAGE - hoàn toàn im lặng
+      // Bỏ: setMessage(data.message);
     });
 
     socket.on('player_reconnected', (data) => {
       console.log('✅ Player reconnected:', data.username);
-      toast.success(data.message);
-      setMessage(data.message);
+      // ⭐ KHÔNG CẬP NHẬT MESSAGE - hoàn toàn im lặng
+      // Bỏ: setMessage(data.message);
     });
 
     socket.on('error', (errMsg) => {
-      toast.error(errMsg || 'Error');
-      setMessage(errMsg || 'Error');
-      setHasJoined(false);
-      setResumeWaiting(false);
+      // ⭐ KIỂM TRA: chỉ hiện toast nếu KHÔNG phải lỗi reconnect
+      if (errMsg && !errMsg.includes('không tồn tại') && !errMsg.includes('không tìm thấy')) {
+        toast.error(errMsg || 'Error');
+        setMessage(errMsg || 'Error');
+        setHasJoined(false);
+        setResumeWaiting(false);
+      } else {
+        // Lỗi reconnect - chỉ log, không hiện gì
+        console.log('Reconnect error (silent):', errMsg);
+      }
     });
 
     return () => {
@@ -405,25 +411,25 @@ const GameRoomPage = () => {
       if (document.visibilityState === 'visible' && hasJoined && roomId) {
         console.log('📱 App resumed, checking connection...');
         
-        // Đợi 500ms để đảm bảo socket đã sẵn sàng
+        // ⭐ GIẢM THỜI GIAN CHỜ: 300ms thay vì 500ms
         setTimeout(() => {
           if (!socket.connected) {
             console.log('🔌 Socket disconnected, reconnecting...');
             socket.connect();
           }
           
-          // Sau khi connect, gửi reconnect request
+          // ⭐ GIẢM DELAY: 150ms thay vì 300ms
           setTimeout(() => {
             handleReconnect();
-          }, 300);
-        }, 500);
+          }, 150);
+        }, 300);
       }
     };
     
     const handleOnline = () => {
       if (hasJoined && roomId) {
         console.log('🌐 Network restored, reconnecting...');
-        setTimeout(() => handleReconnect(), 500);
+        setTimeout(() => handleReconnect(), 300); // ⭐ Giảm từ 500ms
       }
     };
     
@@ -435,7 +441,7 @@ const GameRoomPage = () => {
     socket.on('connect', () => {
       console.log('🔌 Socket connected:', socket.id);
       if (hasJoined && roomId && !hasAttemptedReconnect.current) {
-        setTimeout(() => handleReconnect(), 500);
+        setTimeout(() => handleReconnect(), 300); // ⭐ Giảm từ 500ms
       }
     });
     
@@ -772,13 +778,7 @@ const GameRoomPage = () => {
           <h1 className="text-3xl md:text-5xl font-extrabold text-gradient-game mb-2">Number Game</h1>
           <p className="text-lg md:text-xl text-gray-200 mb-4">{message}</p>
           
-          {/* ⭐ THÊM: Hiển thị trạng thái reconnecting */}
-          {isReconnecting && (
-            <div className="flex items-center justify-center space-x-2 bg-yellow-500 bg-opacity-20 rounded-lg px-4 py-2 mb-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
-              <span className="text-yellow-300 text-sm">Đang kết nối lại...</span>
-            </div>
-          )}
+          {/* ⭐ XÓA PHẦN HIỂN THỊ RECONNECTING - kết nối ngầm */}
           
           {roomId && (
             <div className="mb-4 space-y-2 text-center w-full max-w-md">
@@ -925,13 +925,7 @@ const GameRoomPage = () => {
           <h1 className="text-3xl font-extrabold text-gradient-game mb-4">Number Game</h1>
           <p className="text-lg text-gray-200 mb-4">{message}</p>
           
-          {/* ⭐ THÊM: Hiển thị reconnecting cho mobile */}
-          {isReconnecting && (
-            <div className="flex items-center justify-center space-x-2 bg-yellow-500 bg-opacity-20 rounded-lg px-3 py-2 mb-2">
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-400"></div>
-              <span className="text-yellow-300 text-xs">Đang kết nối lại...</span>
-            </div>
-          )}
+          {/* ⭐ XÓA PHẦN HIỂN THỊ RECONNECTING CHO MOBILE */}
           
           {roomId && (
             <div className="mb-4 w-full max-w-sm">
