@@ -9,6 +9,7 @@ const cron = require('node-cron');
 const User = require('./models/User');
 const MatchHistory = require('./models/MatchHistory');
 const SoloStreak = require('./models/SoloStreak');
+app.get('/ping', (req, res) => res.send('pong'));
 
 dotenv.config();
 
