@@ -27,7 +27,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.get('/ping', (req, res) => res.send('pong'));
+
 // ✅ Cho phép preflight request (OPTIONS) trên tất cả đường dẫn
 app.options(/.*/, cors());
 
@@ -161,7 +161,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/solo', soloRoutes);
 app.use('/api/saved-game', savedGameRoutes);
 app.use('/api/multiplayer', multiplayerRoutes);
-
+app.get('/ping', (req, res) => res.send('pong'));
 // GAME STATE
 let rooms = {};
 let resumeSessions = {};
