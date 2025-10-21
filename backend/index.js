@@ -26,6 +26,8 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+
+app.get('/ping', (req, res) => res.send('pong'));
 // ✅ Cho phép preflight request (OPTIONS) trên tất cả đường dẫn
 app.options(/.*/, cors());
 
