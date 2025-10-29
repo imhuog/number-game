@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   UserIcon, ClipboardIcon, ArrowLeftOnRectangleIcon,
   PlayIcon, CheckCircleIcon, SunIcon, MoonIcon, 
-  CurrencyDollarIcon, BookmarkIcon
+  CurrencyDollarIcon, BookmarkIcon, TrashIcon
 } from '@heroicons/react/24/solid';
 import { toast } from 'react-toastify';
 import { io } from "socket.io-client";
@@ -29,7 +29,6 @@ export const socket = io(SOCKET_URL, {
 
 const isMobileDevice = () => window.innerWidth <= 768;
 
-// ⭐ KEY cho localStorage
 const MULTIPLAYER_TEMP_STATE_KEY = 'multiplayerGameTempState';
 
 const GameRoomPage = () => {
@@ -61,7 +60,6 @@ const GameRoomPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ⭐ HÀM FETCH COINS TỪ SERVER
   const fetchUserCoins = async () => {
     try {
       const response = await getUserCoins();
@@ -72,7 +70,6 @@ const GameRoomPage = () => {
     }
   };
 
-  // ⭐ HÀM LƯU TEMP STATE
   const saveTempState = useCallback(() => {
     if (!hasJoined || !roomId) return;
     
@@ -96,7 +93,6 @@ const GameRoomPage = () => {
     }
   }, [hasJoined, roomId, username, gameStarted, difficulty, mode, myColor, isDarkTheme]);
 
-  // ⭐ HÀM XÓA TEMP STATE
   const clearTempState = useCallback(() => {
     try {
       localStorage.removeItem(MULTIPLAYER_TEMP_STATE_KEY);
@@ -106,7 +102,6 @@ const GameRoomPage = () => {
     }
   }, []);
 
-  // ⭐ HÀM PHỤC HỒI TEMP STATE
   const restoreTempState = useCallback(() => {
     try {
       const saved = localStorage.getItem(MULTIPLAYER_TEMP_STATE_KEY);
@@ -114,9 +109,8 @@ const GameRoomPage = () => {
       
       const tempState = JSON.parse(saved);
       
-      // Kiểm tra xem state có quá cũ không (> 10 phút)
       const ageMs = Date.now() - tempState.timestamp;
-      if (ageMs > 600000) { // 10 phút
+      if (ageMs > 600000) {
         clearTempState();
         return null;
       }
@@ -130,7 +124,6 @@ const GameRoomPage = () => {
     }
   }, [clearTempState]);
 
-  // ⭐ HÀM RECONNECT
   const handleReconnect = useCallback(() => {
     if (!roomId || !username || hasAttemptedReconnect.current) return;
     
@@ -279,7 +272,6 @@ const GameRoomPage = () => {
     setPositions(newPositions);
   }, [gameStarted, grid]);
 
-  // ⭐ SOCKET & LIFECYCLE - ĐÃ SỬA ĐỂ PHỤC HỒI TEMP STATE
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -301,7 +293,6 @@ const GameRoomPage = () => {
       return;
     }
 
-    // ⭐ THỬ PHỤC HỒI STATE TỪ RELOAD
     const tempState = restoreTempState();
     if (tempState && tempState.username === userUsername) {
       console.log('🔄 Attempting to restore multiplayer game...');
@@ -316,8 +307,6 @@ const GameRoomPage = () => {
       setTimeout(() => {
         handleReconnect();
       }, 500);
-      
-      // ⭐ ĐÃ XÓA toast.info - reconnect ngầm, không hiện thông báo
     } else {
       const qp = new URLSearchParams(location.search);
       const r = qp.get('room');
@@ -475,7 +464,6 @@ const GameRoomPage = () => {
     };
   }, [navigate, location.pathname, location.search, mode, generateRandomPositions, restoreTempState, handleReconnect, clearTempState, fetchUserCoins]);
 
-  // ⭐ AUTO-SAVE TEMP STATE
   useEffect(() => {
     if (!hasJoined || !roomId) return;
     
@@ -486,7 +474,6 @@ const GameRoomPage = () => {
     return () => clearInterval(interval);
   }, [hasJoined, roomId, saveTempState]);
 
-  // ⭐ PAGE VISIBILITY & RECONNECTION
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && hasJoined && roomId) {
@@ -561,7 +548,6 @@ const GameRoomPage = () => {
     return () => window.removeEventListener('resize', onResize);
   }, [gameStarted, grid, generateRandomPositions]);
 
-  // Handlers
   const handleCreateRoom = () => {
     socket.emit('create_room', { username, difficulty, mode, color: myColor });
   };
@@ -602,6 +588,24 @@ const GameRoomPage = () => {
       setIsResuming(false);
       setResumeWaiting(false);
       setHasJoined(false);
+    }
+  };
+
+  // ⭐ THÊM MỚI: Handler xóa game đã lưu
+  const handleDeleteSavedGame = async () => {
+    if (!savedGameInfo) {
+      toast.error('Không có game nào để xóa!');
+      return;
+    }
+
+    try {
+      await deleteSavedMultiplayerGame(savedGameInfo.roomId);
+      setHasSavedGame(false);
+      setSavedGameInfo(null);
+      toast.success('✅ Đã xóa game đã lưu!');
+    } catch (err) {
+      console.error('Error deleting saved game:', err);
+      toast.error('Lỗi khi xóa game!');
     }
   };
 
@@ -737,10 +741,20 @@ const GameRoomPage = () => {
           
           <p className="text-gray-200">Bạn đã sẵn sàng tham gia phòng chơi chưa?</p>
           
+          {/* ⭐ SỬA: Thêm button Hủy bỏ bên cạnh button Resume */}
           {hasSavedGame && (
-            <button onClick={handleResumeMultiplayer} className="btn-join w-full">
-              🔄 Chơi tiếp ván đã lưu
-            </button>
+            <div className="space-y-2">
+              <button onClick={handleResumeMultiplayer} className="btn-join w-full">
+                🔄 Chơi tiếp ván đã lưu
+              </button>
+              <button 
+                onClick={handleDeleteSavedGame} 
+                className="w-full bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-300 font-bold py-2 px-4 rounded-full transition duration-300 flex items-center justify-center"
+              >
+                <TrashIcon className="h-5 w-5 mr-2" />
+                Hủy bỏ ván đã lưu
+              </button>
+            </div>
           )}
           
           <div className="space-y-4">
