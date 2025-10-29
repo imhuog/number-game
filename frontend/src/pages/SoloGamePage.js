@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import {
   PlayIcon, ArrowLeftOnRectangleIcon, SunIcon, MoonIcon, 
-  CurrencyDollarIcon, BookmarkIcon
+  CurrencyDollarIcon, BookmarkIcon, TrashIcon
 } from '@heroicons/react/24/solid';
 import { 
   saveSoloGame, 
@@ -291,7 +291,7 @@ const SoloGamePage = () => {
     
     const interval = setInterval(() => {
       saveTempState();
-    }, 2000); // Lưu mỗi 2 giây
+    }, 2000);
     
     return () => clearInterval(interval);
   }, [gameStarted, saveTempState]);
@@ -380,6 +380,18 @@ const SoloGamePage = () => {
     }
   };
 
+  // ⭐ THÊM MỚI: Handler xóa game đã lưu
+  const handleDeleteSavedGame = async () => {
+    try {
+      await deleteSavedSoloGame();
+      setHasSavedGame(false);
+      toast.success('✅ Đã xóa game đã lưu!');
+    } catch (err) {
+      console.error('Error deleting saved game:', err);
+      toast.error('Lỗi khi xóa game!');
+    }
+  };
+
   const handleSaveGame = async () => {
     if (!gameStarted) {
       toast.warn('Không có game nào để lưu!');
@@ -404,7 +416,6 @@ const SoloGamePage = () => {
       
       if (timerRef.current) clearInterval(timerRef.current);
       
-      // ⭐ XÓA TEMP STATE khi save thủ công
       clearTempState();
       
       setGameStarted(false);
@@ -435,7 +446,6 @@ const SoloGamePage = () => {
       setGameStarted(false);
       if (timerRef.current) clearInterval(timerRef.current);
       
-      // ⭐ XÓA TEMP STATE khi hoàn thành
       clearTempState();
       
       try {
@@ -466,7 +476,6 @@ const SoloGamePage = () => {
       setGameStarted(false);
       if (timerRef.current) clearInterval(timerRef.current);
       
-      // ⭐ XÓA TEMP STATE khi thoát game
       clearTempState();
     }
     setHasConfigured(false);
@@ -495,10 +504,20 @@ const SoloGamePage = () => {
           
           <p className="text-gray-200">Cấu hình trò chơi một mình</p>
           
+          {/* ⭐ SỬA: Thêm button Hủy bỏ bên cạnh button Resume */}
           {hasSavedGame && (
-            <button onClick={handleResumeGame} className="btn-join w-full">
-              🔄 Chơi tiếp ván đã lưu
-            </button>
+            <div className="space-y-2">
+              <button onClick={handleResumeGame} className="btn-join w-full">
+                🔄 Chơi tiếp ván đã lưu
+              </button>
+              <button 
+                onClick={handleDeleteSavedGame} 
+                className="w-full bg-red-500 bg-opacity-20 hover:bg-opacity-30 text-red-300 font-bold py-2 px-4 rounded-full transition duration-300 flex items-center justify-center"
+              >
+                <TrashIcon className="h-5 w-5 mr-2" />
+                Hủy bỏ ván đã lưu
+              </button>
+            </div>
           )}
           
           <div className="space-y-4">
