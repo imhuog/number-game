@@ -430,9 +430,18 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // ⭐ SỬA: Reset toàn bộ game state
     room.grid = generateGridByDifficulty(room.difficulty);
+    room.nextNumber = 1; // ✅ Reset về 1
+    room.foundNumbers = {}; // ✅ Clear found numbers
     room.gameStarted = true;
     room.message = 'Trò chơi đã bắt đầu!';
+    
+    // ⭐ SỬA: Reset điểm số của tất cả players
+    room.players.forEach(player => {
+      player.score = 0;
+    });
+    
     io.to(roomId).emit('game_state', room);
   });
   
@@ -456,6 +465,7 @@ io.on('connection', (socket) => {
       room.nextNumber++;
       currentPlayer.score++;
       
+      // ⭐ SỬA: Kiểm tra game over dựa vào grid.length
       if (room.nextNumber > room.grid.length) {
         // GAME OVER - Xử lý coins
         const [player1, player2] = room.players;
@@ -501,6 +511,17 @@ io.on('connection', (socket) => {
           await saveMatchResult(room, winner.username);
         }
         
+        // ⭐ SỬA: Reset game state sau khi game over
+        room.gameStarted = false;
+        room.nextNumber = 1; // ✅ Reset về 1
+        room.foundNumbers = {}; // ✅ Clear found numbers
+        room.message = gameMessage;
+        
+        // ⭐ SỬA: Reset điểm số
+        room.players.forEach(player => {
+          player.score = 0;
+        });
+        
         io.to(roomId).emit('game_over', {
           message: gameMessage,
           coinResults,
@@ -509,6 +530,9 @@ io.on('connection', (socket) => {
             [player2.username]: player2.score
           }
         });
+        
+        // ⭐ THÊM: Emit room_state để update UI về trạng thái chờ
+        io.to(roomId).emit('room_state', room);
         
         return;
       }
